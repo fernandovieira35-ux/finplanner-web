@@ -1,0 +1,4 @@
+-- FinPlanner Web 0.7
+-- Não é necessária nova alteração estrutural no banco.
+-- A tabela receitas_recorrentes já aceita múltiplos registros por usuário.
+-- O total das rendas é calculado pela aplicação somando os lançamentos de tipo 'R'.

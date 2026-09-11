@@ -1,0 +1,3 @@
+-- FinPlanner Web 0.9
+-- Não é necessária nova migração estrutural.
+-- As políticas RLS atuais já permitem UPDATE e DELETE em lançamentos e pagamentos.

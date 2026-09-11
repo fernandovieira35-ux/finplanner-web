@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FinPlanner Web 0.5</title>
+<link rel="icon" href="assets/favicon.ico">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#111827">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<section id="loginView" class="login-view">
+  <div class="login-card">
+    <div class="brand"><img class="brand-logo" src="assets/logo-512.png" alt="FinPlanner"><div><h1>FinPlanner</h1><p>Planejamento financeiro mensal</p></div></div>
+    <div id="loginMessage" class="message hidden"></div>
+    <label>E-mail</label><input id="email" type="email">
+    <label>Senha</label><input id="senha" type="password">
+    <button id="btnEntrar" class="primary full" onclick="entrar()">Entrar</button>
+    <div class="login-actions single"><button class="link-action" onclick="abrirRecuperacaoSenha()">Esqueci minha senha</button></div>
+  </div>
+</section>
+
+<section id="appView" class="hidden">
+<header class="topbar">
+  <button class="menu-btn" onclick="toggleMenu()">☰</button>
+  <div class="header-brand"><img src="assets/logo-64.png" alt="FinPlanner"><strong>FinPlanner</strong></div>
+  <div class="user-area"><span>🔔</span><span id="usuarioNome">Usuário</span><button onclick="sair()" class="secondary">Sair</button></div>
+</header>
+
+<div class="shell">
+<aside id="sidebar" class="sidebar">
+  <button class="nav active" onclick="showView('dashboard',this)">🏠 Dashboard</button>
+  <button class="nav" onclick="showView('recorrentes',this)">🔁 Contas mensais</button>
+  <button class="nav" onclick="showView('receitas',this)">💰 Rendas / Entradas</button>
+  <button class="nav" onclick="showView('lancamentos',this)">💸 Lançamentos</button>
+  <button class="nav" onclick="showView('cartoes',this)">💳 Cartões</button>
+  <button class="nav" onclick="showView('contas',this)">🏦 Contas</button>
+  <button class="nav" onclick="showView('alertas',this)">🔔 Alertas</button>
+  <button id="navUsuarios" class="nav hidden" onclick="showView('usuarios',this)">👥 Usuários</button>
+</aside>
+
+<main class="content">
+
+<section id="view-dashboard" class="app-section">
+  <div class="page-head">
+    <div><h2 id="periodoTitulo">Dashboard</h2><p>Resumo financeiro da competência.</p></div>
+    <div class="head-actions">
+      <input id="competencia" type="month" onchange="trocarCompetencia()">
+      <button class="primary" onclick="gerarCompetencia()">Gerar mês</button>
+    </div>
+  </div>
+  <div id="dashboardMessage" class="message hidden"></div>
+
+  <div class="cards">
+    <article class="metric"><span>Entradas previstas</span><strong id="entradasPrevistas">R$ 0,00</strong></article>
+    <article class="metric"><span>Recebido</span><strong id="recebidoMes">R$ 0,00</strong></article>
+    <article class="metric"><span>Contas previstas</span><strong id="contasPrevistas">R$ 0,00</strong></article>
+    <article class="metric"><span>Já pago</span><strong id="jaPago">R$ 0,00</strong></article>
+    <article class="metric"><span>A pagar</span><strong id="aPagar">R$ 0,00</strong></article>
+    <article class="metric success"><span>Saldo atual</span><strong id="saldoAtual">R$ 0,00</strong></article>
+    <article class="metric warning"><span>Saldo projetado</span><strong id="saldoProjetado">R$ 0,00</strong></article>
+    <article id="cardDeficit" class="metric deficit-card hidden"><span>Déficit previsto</span><strong id="deficitPrevisto">R$ 0,00</strong><small>faltará para pagar todas as contas</small></article>
+  </div>
+
+  <div class="grid">
+    <section class="panel">
+      <div class="panel-head"><h3>Contas do mês</h3></div>
+      <div id="listaMes"></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h3>Alertas</h3></div>
+      <div id="listaAlertas"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h3>Composição das rendas</h3></div>
+      <div id="listaRendasMes"></div>
+    </section>
+  </div>
+</section>
+
+<section id="view-recorrentes" class="app-section hidden">
+  <div class="page-head">
+    <div><h2>Contas mensais</h2><p>Fixas ou variáveis, geradas automaticamente por competência.</p></div>
+    <button class="primary" onclick="abrirContaRecorrente()">+ Nova conta mensal</button>
+  </div>
+  <div class="panel"><div id="listaRecorrentes"></div></div>
+</section>
+
+<section id="view-receitas" class="app-section hidden">
+  <div class="page-head">
+    <div><h2>Rendas / Entradas recorrentes</h2><p>Cadastre salários e outras rendas mensais. O sistema soma todas automaticamente.</p></div>
+    <button class="primary" onclick="abrirReceita()">+ Adicionar renda</button>
+  </div>
+  <div class="panel"><div id="listaReceitas"></div></div>
+</section>
+
+<section id="view-lancamentos" class="app-section hidden">
+  <div class="page-head">
+    <div><h2>Lançamentos do mês</h2><p>Atualize valores, códigos e pagamentos.</p></div>
+    <button class="primary" onclick="abrirReceita()">+ Adicionar renda</button>
+  </div>
+  <div class="panel table-scroll"><div id="listaLancamentos"></div></div>
+</section>
+
+<section id="view-cartoes" class="app-section hidden">
+  <div class="page-head">
+    <div><h2>Cartões de crédito</h2><p>Cadastre cartões e compras parceladas.</p></div>
+    <div class="head-actions"><button class="primary" onclick="abrirCartao()">+ Cartão</button><button class="secondary" onclick="abrirCompra()">+ Compra</button></div>
+  </div>
+  <div class="panel"><div id="listaCartoes"></div></div>
+  <div class="panel" style="margin-top:16px">
+    <div class="panel-head"><h3>Compras cadastradas</h3></div>
+    <div id="listaComprasCartao"></div>
+  </div>
+</section>
+
+<section id="view-contas" class="app-section hidden">
+  <div class="page-head">
+    <div><h2>Contas financeiras</h2><p>Bancos, carteiras e saldos iniciais.</p></div>
+    <button class="primary" onclick="abrirConta()">+ Nova conta</button>
+  </div>
+  <div class="panel"><div id="listaContas"></div></div>
+</section>
+
+
+<section id="view-alertas" class="app-section hidden">
+  <div class="page-head">
+    <div>
+      <h2>Alertas e notificações</h2>
+      <p>Configure como deseja receber avisos de contas próximas do vencimento.</p>
+    </div>
+  </div>
+
+  <div class="grid">
+    <section class="panel">
+      <div class="panel-head"><h3>Canais</h3></div>
+      <div id="alertMsg" class="message hidden"></div>
+
+      <label class="check-row"><input id="alertInterno" type="checkbox"> Alerta dentro do FinPlanner</label>
+      <label class="check-row"><input id="alertEmail" type="checkbox"> Enviar por e-mail</label>
+
+      <label>E-mail de destino</label>
+      <input id="alertEmailDestino" type="email" placeholder="nome@exemplo.com">
+
+      <label class="check-row"><input id="alertWhatsapp" type="checkbox"> Enviar por WhatsApp</label>
+
+      <label>WhatsApp com DDI</label>
+      <input id="alertWhatsappNumero" placeholder="Ex.: 5564999999999">
+
+      <label>Dias antes para avisar</label>
+      <input id="alertDias" placeholder="Ex.: 5,2,0">
+      <small class="muted">0 significa avisar no dia do vencimento.</small>
+
+      <div class="modal-actions">
+        <button class="primary" onclick="salvarPreferenciasAlerta()">Salvar alertas</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h3>Testar canais</h3></div>
+      <p class="muted">Os testes utilizam uma Supabase Edge Function. As credenciais dos provedores ficam somente no servidor.</p>
+      <div class="test-actions">
+        <button class="secondary" onclick="testarAlerta('email')">✉ Testar e-mail</button>
+        <button class="secondary" onclick="testarAlerta('whatsapp')">💬 Testar WhatsApp</button>
+      </div>
+      <div id="alertTestMsg" class="message hidden" style="margin-top:14px"></div>
+    </section>
+  </div>
+</section>
+
+
+<section id="view-usuarios" class="app-section hidden">
+  <div class="page-head">
+    <div>
+      <h2>Usuários</h2>
+      <p>Controle de acessos ao FinPlanner.</p>
+    </div>
+    <button id="btnCriarNovoAcesso" class="primary access-btn" onclick="abrirCadastroUsuario()">+ Criar novo acesso</button>
+  </div>
+
+  <div id="usuariosMsg" class="message hidden"></div>
+
+  <div class="access-toolbar">
+    <div>
+      <strong>Gerenciamento de acessos</strong>
+      <p class="muted">Crie novos usuários para acessar o FinPlanner.</p>
+    </div>
+    <button class="primary access-btn" onclick="abrirCadastroUsuario()">+ Criar novo acesso</button>
+  </div>
+
+  <div class="panel table-scroll">
+    <div id="listaUsuarios"></div>
+  </div>
+</section>
+
+</main>
+</div>
+</section>
+
+<!-- MODAL RECEITA -->
+<div id="modalReceita" class="modal hidden"><div class="modal-box small-modal">
+<div class="modal-head"><div><h3 id="recModalTitulo">Renda recorrente</h3><p>Ex.: seu salário, salário da esposa ou outra entrada mensal.</p></div><button class="close" onclick="modalReceita.classList.add('hidden')">×</button></div>
+<div id="receitaMsg" class="message hidden"></div>
+<input id="recId" type="hidden">
+<label>Descrição *</label><input id="recDescricao">
+<label>Valor *</label><input id="recValor" type="number" step="0.01">
+<label>Dia de recebimento *</label><input id="recDia" type="number" min="1" max="31">
+<label>Data inicial *</label><input id="recInicio" type="date">
+<div class="modal-actions receita-actions">
+  <button class="secondary" onclick="modalReceita.classList.add('hidden')">Cancelar</button>
+  <button class="secondary" onclick="salvarReceita(true)">Salvar e adicionar outra</button>
+  <button class="primary" onclick="salvarReceita(false)">Salvar</button>
+</div>
+</div></div>
+
+<!-- MODAL CONTA RECORRENTE -->
+<div id="modalRecorrente" class="modal hidden"><div class="modal-box">
+<div class="modal-head"><div><h3 id="crModalTitulo">Conta mensal</h3><p>Cadastre ou edite uma despesa fixa ou variável.</p></div><button class="close" onclick="modalRecorrente.classList.add('hidden')">×</button></div>
+<div id="recorrenteMsg" class="message hidden"></div>
+<input id="crId" type="hidden">
+<div class="form-grid">
+<div class="span2"><label>Descrição *</label><input id="crDescricao"></div>
+<div><label>Tipo *</label><select id="crTipo"><option value="VARIAVEL">Variável</option><option value="FIXA">Fixa</option></select></div>
+<div><label>Valor padrão</label><input id="crValor" type="number" step="0.01"></div>
+<div><label>Dia de vencimento *</label><input id="crDia" type="number" min="1" max="31"></div>
+<div><label>Data inicial *</label><input id="crInicio" type="date"></div>
+<div class="span2"><label>Linha digitável (opcional)</label><input id="crLinha"></div>
+<div class="span2"><label>Código de barras (opcional)</label><input id="crCodigo"></div>
+</div>
+<div class="modal-actions"><button class="secondary" onclick="modalRecorrente.classList.add('hidden')">Cancelar</button><button class="primary" onclick="salvarContaRecorrente()">Salvar</button></div>
+</div></div>
+
+<!-- MODAL CONTA -->
+<div id="modalConta" class="modal hidden"><div class="modal-box small-modal">
+<div class="modal-head"><div><h3 id="contaModalTitulo">Conta financeira</h3></div><button class="close" onclick="modalConta.classList.add('hidden')">×</button></div>
+<div id="contaMsg" class="message hidden"></div>
+<input id="contaId" type="hidden">
+<label>Descrição *</label><input id="contaDescricao">
+<label>Banco</label><input id="contaBanco">
+<label>Saldo inicial</label><input id="contaSaldo" type="number" step="0.01" value="0">
+<div class="modal-actions"><button class="secondary" onclick="modalConta.classList.add('hidden')">Cancelar</button><button class="primary" onclick="salvarConta()">Salvar</button></div>
+</div></div>
+
+<!-- MODAL ATUALIZA LANÇAMENTO -->
+<div id="modalEditarLanc" class="modal hidden"><div class="modal-box">
+<div class="modal-head"><div><h3>Atualizar conta do mês</h3><p id="editTitulo"></p></div><button class="close" onclick="modalEditarLanc.classList.add('hidden')">×</button></div>
+<div id="editMsg" class="message hidden"></div>
+<input id="editId" type="hidden">
+<div class="form-grid">
+<div><label>Valor *</label><input id="editValor" type="number" step="0.01"></div>
+<div><label>Vencimento *</label><input id="editVenc" type="date"></div>
+<div class="span2"><label>Linha digitável</label><input id="editLinha"></div>
+<div class="span2"><label>Código de barras</label><input id="editCodigo"></div>
+</div>
+<div class="modal-actions"><button class="secondary" onclick="modalEditarLanc.classList.add('hidden')">Cancelar</button><button class="primary" onclick="salvarEdicaoLanc()">Salvar alteração</button></div>
+</div></div>
+
+<!-- MODAL PAGAMENTO -->
+<div id="modalPagamento" class="modal hidden"><div class="modal-box small-modal">
+<div class="modal-head"><div><h3>Marcar como pago</h3><p id="pagTitulo"></p></div><button class="close" onclick="modalPagamento.classList.add('hidden')">×</button></div>
+<div id="pagMsg" class="message hidden"></div>
+<input id="pagId" type="hidden">
+<label>Valor pago *</label><input id="pagValor" type="number" step="0.01">
+<label>Data do pagamento *</label><input id="pagData" type="date">
+<div class="modal-actions"><button class="secondary" onclick="modalPagamento.classList.add('hidden')">Cancelar</button><button class="primary" onclick="salvarPagamento()">Confirmar</button></div>
+</div></div>
+
+<!-- MODAL CARTAO -->
+<div id="modalCartao" class="modal hidden"><div class="modal-box small-modal">
+<div class="modal-head"><div><h3 id="cartaoModalTitulo">Novo cartão</h3></div><button class="close" onclick="modalCartao.classList.add('hidden')">×</button></div>
+<div id="cartaoMsg" class="message hidden"></div>
+<input id="cartaoId" type="hidden">
+<label>Descrição *</label><input id="cartaoDescricao">
+<label>Limite</label><input id="cartaoLimite" type="number" step="0.01">
+<label>Dia fechamento *</label><input id="cartaoFech" type="number" min="1" max="31">
+<label>Dia vencimento *</label><input id="cartaoVenc" type="number" min="1" max="31">
+<div class="modal-actions"><button class="secondary" onclick="modalCartao.classList.add('hidden')">Cancelar</button><button class="primary" onclick="salvarCartao()">Salvar</button></div>
+</div></div>
+
+<!-- MODAL COMPRA -->
+<div id="modalCompra" class="modal hidden"><div class="modal-box">
+<div class="modal-head"><div><h3 id="compraModalTitulo">Compra no cartão</h3></div><button class="close" onclick="modalCompra.classList.add('hidden')">×</button></div>
+<div id="compraMsg" class="message hidden"></div>
+<input id="compraId" type="hidden">
+<div class="form-grid">
+<div class="span2"><label>Cartão *</label><select id="compraCartao"></select></div>
+<div class="span2"><label>Descrição *</label><input id="compraDescricao"></div>
+<div><label>Valor total *</label><input id="compraValor" type="number" step="0.01"></div>
+<div><label>Parcelas *</label><input id="compraParcelas" type="number" min="1" value="1"></div>
+<div><label>Data da compra *</label><input id="compraData" type="date"></div>
+<div><label>Primeira competência *</label><input id="compraCompetencia" type="month"></div>
+</div>
+<div class="modal-actions"><button class="secondary" onclick="modalCompra.classList.add('hidden')">Cancelar</button><button class="primary" onclick="salvarCompra()">Salvar compra</button></div>
+</div></div>
+
+
+<!-- CADASTRO DE USUÁRIO -->
+<div id="modalCadastroUsuario" class="modal hidden">
+  <div class="modal-box small-modal">
+    <div class="modal-head">
+      <div><h3 id="cadUserTitulo">Novo acesso</h3><p>Cadastre um novo usuário para acessar o FinPlanner.</p></div>
+      <button class="close" onclick="modalCadastroUsuario.classList.add('hidden')">×</button>
+    </div>
+    <div id="cadUserMsg" class="message hidden"></div>
+    <label>Nome *</label><input id="cadNome">
+    <label>E-mail *</label><input id="cadEmail" type="email">
+    <label>Senha *</label><input id="cadSenha" type="password" minlength="8">
+    <label>Confirmar senha *</label><input id="cadSenha2" type="password" minlength="8">
+    <small class="muted">Utilize pelo menos 8 caracteres.</small>
+
+    <label class="check-row"><input id="cadAdministrador" type="checkbox"> Administrador</label>
+    <label class="check-row"><input id="cadAtivo" type="checkbox" checked> Usuário ativo</label>
+    <div class="modal-actions">
+      <button class="secondary" onclick="modalCadastroUsuario.classList.add('hidden')">Cancelar</button>
+      <button class="primary" onclick="criarUsuario()">Criar usuário</button>
+    </div>
+  </div>
+</div>
+
+<!-- RECUPERAÇÃO DE SENHA -->
+<div id="modalRecuperarSenha" class="modal hidden">
+  <div class="modal-box small-modal">
+    <div class="modal-head">
+      <div><h3>Recuperar senha</h3><p>Enviaremos o fluxo de recuperação para seu e-mail.</p></div>
+      <button class="close" onclick="modalRecuperarSenha.classList.add('hidden')">×</button>
+    </div>
+    <div id="recoverMsg" class="message hidden"></div>
+    <label>E-mail *</label><input id="recoverEmail" type="email">
+    <div class="modal-actions">
+      <button class="secondary" onclick="modalRecuperarSenha.classList.add('hidden')">Cancelar</button>
+      <button class="primary" onclick="enviarRecuperacaoSenha()">Enviar recuperação</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEFINIR NOVA SENHA -->
+<div id="modalNovaSenha" class="modal hidden">
+  <div class="modal-box small-modal">
+    <div class="modal-head">
+      <div><h3>Definir nova senha</h3></div>
+      <button class="close" onclick="modalNovaSenha.classList.add('hidden')">×</button>
+    </div>
+    <div id="newPasswordMsg" class="message hidden"></div>
+    <label>Nova senha *</label><input id="novaSenha" type="password" minlength="8">
+    <label>Confirmar senha *</label><input id="novaSenha2" type="password" minlength="8">
+    <div class="modal-actions">
+      <button class="primary" onclick="salvarNovaSenha()">Alterar senha</button>
+    </div>
+  </div>
+</div>
+
+<script>
+window.FINPLANNER_CONFIG={SUPABASE_URL:"https://waytzrygkhyntrwktwlo.supabase.co",SUPABASE_PUBLISHABLE_KEY:"sb_publishable_e9oRHKY_QqUD5QP68DDX2Q_u7ZbbQTO"};
+</script>
+<script src="app.js"></script>
+</body>
+</html>

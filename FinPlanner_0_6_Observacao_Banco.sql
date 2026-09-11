@@ -1,0 +1,3 @@
+-- FinPlanner Web 0.6
+-- Não há alteração estrutural obrigatória no banco para edição/exclusão.
+-- As políticas RLS existentes já permitem UPDATE e DELETE nas tabelas envolvidas.

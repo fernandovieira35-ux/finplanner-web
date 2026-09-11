@@ -1,0 +1,4 @@
+-- FinPlanner Web 0.8
+-- Não há migração obrigatória adicional.
+-- As políticas RLS criadas na versão 0.5 já permitem SELECT/INSERT/UPDATE/DELETE
+-- nos módulos de receitas recorrentes, contas recorrentes, contas, cartões e compras.

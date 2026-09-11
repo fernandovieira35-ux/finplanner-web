@@ -1,0 +1,3 @@
+-- FinPlanner Web 1.0
+-- Nenhuma migração de banco necessária para múltiplas rendas.
+-- receitas_recorrentes já aceita múltiplos registros por usuário.
