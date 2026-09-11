@@ -19,7 +19,6 @@
     <label>Senha</label><input id="senha" type="password">
     <button id="btnEntrar" class="primary full" onclick="entrar()">Entrar</button>
     <div class="login-actions single"><button class="link-action" onclick="abrirRecuperacaoSenha()">Esqueci minha senha</button></div>
-    <div class="login-credit">Desenvolvido por <strong>Fernando Vieira</strong></div>
   </div>
 </section>
 
@@ -40,7 +39,6 @@
   <button class="nav" onclick="showView('contas',this)">🏦 Contas</button>
   <button class="nav" onclick="showView('alertas',this)">🔔 Alertas</button>
   <button id="navUsuarios" class="nav hidden" onclick="showView('usuarios',this)">👥 Usuários</button>
-  <button class="nav" onclick="showView('dln',this)">📘 DLN / Ajuda</button>
 </aside>
 
 <main class="content">
@@ -208,132 +206,6 @@
 
   <div class="panel table-scroll">
     <div id="listaUsuarios"></div>
-  </div>
-</section>
-
-
-<section id="view-dln" class="app-section hidden">
-  <div class="page-head">
-    <div>
-      <h2>DLN / Ajuda do Sistema</h2>
-      <p>Documento funcional do FinPlanner Web.</p>
-    </div>
-    <button class="secondary" onclick="window.print()">🖨 Imprimir DLN</button>
-  </div>
-
-  <div class="dln-grid">
-    <aside class="panel dln-index">
-      <h3>Índice</h3>
-      <a href="#dln-visao">1. Visão geral</a>
-      <a href="#dln-login">2. Login e acesso</a>
-      <a href="#dln-usuarios">3. Usuários e permissões</a>
-      <a href="#dln-rendas">4. Rendas / Entradas</a>
-      <a href="#dln-contas">5. Contas mensais</a>
-      <a href="#dln-lancamentos">6. Lançamentos</a>
-      <a href="#dln-pagamentos">7. Pagamentos</a>
-      <a href="#dln-cartoes">8. Cartões</a>
-      <a href="#dln-alertas">9. Alertas</a>
-      <a href="#dln-compartilhamento">10. Financeiro compartilhado</a>
-      <a href="#dln-dashboard">11. Dashboard e cálculos</a>
-      <a href="#dln-web">12. Publicação Web</a>
-    </aside>
-
-    <div class="dln-content">
-      <section id="dln-visao" class="panel dln-section">
-        <h3>1. Visão geral</h3>
-        <p>O FinPlanner Web é um sistema de controle financeiro pessoal e familiar, com foco em planejamento mensal, controle de receitas, despesas, contas recorrentes, pagamentos, cartões, alertas e compartilhamento de informações entre usuários autorizados.</p>
-        <p>O sistema utiliza Supabase para autenticação e banco de dados, e pode ser publicado na web por meio do Render, permitindo acesso por computador e telefone.</p>
-      </section>
-
-      <section id="dln-login" class="panel dln-section">
-        <h3>2. Login e acesso</h3>
-        <p>O acesso é realizado por e-mail e senha através do Supabase Authentication. A tela de login possui também a opção <strong>Esqueci minha senha</strong>, permitindo recuperação por e-mail.</p>
-        <p>Novos acessos não são criados publicamente na tela de login. A criação é feita por usuário administrador dentro do próprio FinPlanner.</p>
-      </section>
-
-      <section id="dln-usuarios" class="panel dln-section">
-        <h3>3. Usuários e permissões</h3>
-        <p>Usuários administradores podem criar novos acessos e definir permissões individualmente.</p>
-        <ul>
-          <li>Usuário ativo ou inativo;</li>
-          <li>Administrador;</li>
-          <li>Compartilhar financeiro;</li>
-          <li>Visualizar movimentações;</li>
-          <li>Incluir e alterar movimentações;</li>
-          <li>Excluir movimentações.</li>
-        </ul>
-        <p>O botão <strong>Editar</strong> permite alterar essas permissões posteriormente.</p>
-      </section>
-
-      <section id="dln-rendas" class="panel dln-section">
-        <h3>4. Rendas / Entradas</h3>
-        <p>Permite cadastrar uma ou várias rendas recorrentes, como salário do usuário, salário do cônjuge e outras entradas.</p>
-        <p>As rendas são somadas automaticamente no mês e utilizadas nos cálculos de saldo atual e saldo projetado.</p>
-      </section>
-
-      <section id="dln-contas" class="panel dln-section">
-        <h3>5. Contas mensais</h3>
-        <p>As contas podem ser cadastradas como <strong>fixas</strong> ou <strong>variáveis</strong>.</p>
-        <p>Contas fixas mantêm o mesmo valor em cada competência. Contas variáveis, como água e energia, são geradas mensalmente e podem ter seu valor atualizado sem alterar os meses anteriores.</p>
-        <p>É possível informar, de forma opcional, linha digitável e código de barras.</p>
-      </section>
-
-      <section id="dln-lancamentos" class="panel dln-section">
-        <h3>6. Lançamentos</h3>
-        <p>Cada competência mensal possui seus próprios lançamentos. O usuário pode editar valor, vencimento, código de barras, linha digitável e situação.</p>
-        <p>Os lançamentos podem ser marcados como pagos, reabertos ou excluídos conforme a permissão do usuário.</p>
-      </section>
-
-      <section id="dln-pagamentos" class="panel dln-section">
-        <h3>7. Pagamentos</h3>
-        <p>Ao marcar uma despesa como paga, o sistema registra o pagamento e solicita a <strong>Conta/Banco utilizado no pagamento</strong>.</p>
-        <p>Isso permite identificar posteriormente por qual banco, carteira ou conta financeira a despesa foi quitada.</p>
-      </section>
-
-      <section id="dln-cartoes" class="panel dln-section">
-        <h3>8. Cartões de crédito</h3>
-        <p>Permite cadastrar cartões com limite, dia de fechamento e vencimento. Também é possível registrar compras parceladas.</p>
-        <p>As parcelas são distribuídas por competência e mantidas no histórico do sistema.</p>
-      </section>
-
-      <section id="dln-alertas" class="panel dln-section">
-        <h3>9. Alertas e notificações</h3>
-        <p>O FinPlanner pode trabalhar com alerta interno, e-mail e WhatsApp.</p>
-        <p>É possível definir os dias anteriores ao vencimento, além da data e hora de início e fim dos disparos automáticos.</p>
-        <p>Os canais externos dependem da publicação da Edge Function <strong>finplanner-alertas</strong> e da configuração das credenciais dos provedores no Supabase.</p>
-      </section>
-
-      <section id="dln-compartilhamento" class="panel dln-section">
-        <h3>10. Financeiro compartilhado</h3>
-        <p>O proprietário pode compartilhar o mesmo financeiro com outro usuário. O usuário compartilhado utiliza login próprio e não precisa conhecer a senha do proprietário.</p>
-        <p>As permissões determinam se ele poderá apenas visualizar ou também incluir, alterar e excluir movimentações.</p>
-      </section>
-
-      <section id="dln-dashboard" class="panel dln-section">
-        <h3>11. Dashboard e cálculos</h3>
-        <p>O Dashboard consolida todas as informações da competência selecionada.</p>
-        <div class="formula-box">
-          <strong>Saldo atual</strong>
-          <span>Receitas recebidas - despesas já pagas</span>
-        </div>
-        <div class="formula-box">
-          <strong>Saldo projetado</strong>
-          <span>Receitas previstas - despesas previstas</span>
-        </div>
-        <p>Quando o saldo projetado for negativo, o valor é destacado em vermelho e o sistema apresenta o déficit previsto.</p>
-      </section>
-
-      <section id="dln-web" class="panel dln-section">
-        <h3>12. Publicação e atualização Web</h3>
-        <p>O projeto é versionado no GitHub e publicado no Render. Alterações de interface são enviadas ao GitHub e o Render realiza novo deploy automaticamente.</p>
-        <p>Alterações de banco exigem execução de scripts SQL no Supabase. Alterações de lógica de servidor podem exigir novo deploy de Edge Functions.</p>
-      </section>
-
-      <section class="panel dln-footer">
-        <strong>FinPlanner Web</strong>
-        <span>Desenvolvido por Fernando Vieira</span>
-      </section>
-    </div>
   </div>
 </section>
 
