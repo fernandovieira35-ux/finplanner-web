@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FinPlanner Web 1.7</title>
+<title>FinPlanner Web 1.8</title>
 <link rel="icon" href="assets/favicon.ico">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#111827">
-<link rel="stylesheet" href="styles.css?v=1.7">
+<link rel="stylesheet" href="styles.css?v=1.8">
 </head>
 <body>
 
@@ -19,7 +19,7 @@
     <label>Senha</label><input id="senha" type="password">
     <button id="btnEntrar" class="primary full" onclick="entrar()">Entrar</button>
     <div class="login-actions single"><button class="link-action" onclick="abrirRecuperacaoSenha()">Esqueci minha senha</button></div>
-    <div class="login-credit">Desenvolvido por <strong>Fernando Vieira</strong><br><span class="version-tag">FinPlanner Web v1.7</span></div>
+    <div class="login-credit">Desenvolvido por <strong>Fernando Vieira</strong><br><span class="version-tag">FinPlanner Web v1.8</span></div>
   </div>
 </section>
 
@@ -27,7 +27,7 @@
 <header class="topbar">
   <button class="menu-btn" onclick="toggleMenu()">☰</button>
   <div class="header-brand"><img src="assets/logo-64.png" alt="FinPlanner"><strong>FinPlanner</strong></div>
-  <span class="app-version">v1.7</span><div class="user-area"><span>🔔</span><span id="usuarioNome">Usuário</span><button onclick="sair()" class="secondary">Sair</button></div>
+  <span class="app-version">v1.8</span><div class="user-area"><span>🔔</span><span id="usuarioNome">Usuário</span><button onclick="sair()" class="secondary">Sair</button></div>
 </header>
 
 <div class="shell">
@@ -36,6 +36,7 @@
   <button class="nav" onclick="showView('recorrentes',this)">🔁 Contas mensais</button>
   <button class="nav" onclick="showView('receitas',this)">💰 Rendas / Entradas</button>
   <button class="nav" onclick="showView('lancamentos',this)">💸 Lançamentos</button>
+  <button class="nav" onclick="showView('pagas',this)">✅ Contas pagas</button>
   <button class="nav" onclick="showView('cartoes',this)">💳 Cartões</button>
   <button class="nav" onclick="showView('contas',this)">🏦 Contas</button>
   <button class="nav" onclick="showView('alertas',this)">🔔 Alertas</button>
@@ -50,10 +51,19 @@
     <div><h2 id="periodoTitulo">Dashboard</h2><p>Resumo financeiro da competência.</p></div>
     <div class="head-actions">
       <input id="competencia" type="month" onchange="trocarCompetencia()">
-      <button class="primary" onclick="gerarCompetencia()">Gerar mês</button>
+      <button class="primary" onclick="iniciarNovoCiclo()">↻ Iniciar novo ciclo</button>
     </div>
   </div>
   <div id="dashboardMessage" class="message hidden"></div>
+
+  <section id="painelCiclo" class="panel cycle-panel">
+    <div>
+      <strong>Ciclo mensal</strong>
+      <p id="statusCiclo" class="muted">Verificando a competência selecionada...</p>
+    </div>
+    <button id="btnProximoCiclo" class="secondary" onclick="iniciarProximoCiclo()">Iniciar próximo mês</button>
+  </section>
+
 
   <div class="cards">
     <article class="metric"><span>Entradas previstas</span><strong id="entradasPrevistas">R$ 0,00</strong></article>
@@ -105,6 +115,38 @@
     <button class="primary" onclick="abrirReceita()">+ Adicionar renda</button>
   </div>
   <div class="panel table-scroll"><div id="listaLancamentos"></div></div>
+</section>
+
+
+<section id="view-pagas" class="app-section hidden">
+  <div class="page-head">
+    <div>
+      <h2>Contas pagas</h2>
+      <p>Histórico de despesas quitadas, com data de pagamento e banco utilizado.</p>
+    </div>
+    <div class="head-actions">
+      <label class="month-filter">
+        <span>Mês</span>
+        <input id="competenciaPagas" type="month" onchange="loadContasPagas()">
+      </label>
+      <button class="secondary" onclick="loadContasPagas()">Pesquisar</button>
+    </div>
+  </div>
+
+  <div class="cards paid-summary">
+    <article class="metric">
+      <span>Total pago no mês</span>
+      <strong id="totalContasPagas">R$ 0,00</strong>
+    </article>
+    <article class="metric">
+      <span>Quantidade de contas</span>
+      <strong id="qtdContasPagas">0</strong>
+    </article>
+  </div>
+
+  <div class="panel table-scroll">
+    <div id="listaContasPagas"></div>
+  </div>
 </section>
 
 <section id="view-cartoes" class="app-section hidden">
@@ -237,6 +279,8 @@
       <a href="#dln-compartilhamento">10. Financeiro compartilhado</a>
       <a href="#dln-dashboard">11. Dashboard e cálculos</a>
       <a href="#dln-web">12. Publicação Web</a>
+      <a href="#dln-pagas">13. Contas pagas</a>
+      <a href="#dln-ciclo">14. Ciclo mensal</a>
     </aside>
 
     <div class="dln-content">
@@ -330,7 +374,22 @@
         <p>Alterações de banco exigem execução de scripts SQL no Supabase. Alterações de lógica de servidor podem exigir novo deploy de Edge Functions.</p>
       </section>
 
-      <section class="panel dln-footer">
+      
+      <section id="dln-pagas" class="panel dln-section">
+        <h3>13. Contas pagas</h3>
+        <p>A tela Contas pagas apresenta o histórico das despesas quitadas na competência selecionada.</p>
+        <p>São exibidos descrição, vencimento, data do pagamento, valor pago e a conta/banco utilizado na baixa.</p>
+        <p>O filtro por mês permite consultar competências anteriores sem alterar o histórico.</p>
+      </section>
+
+      <section id="dln-ciclo" class="panel dln-section">
+        <h3>14. Ciclo mensal</h3>
+        <p>Cada competência funciona como um ciclo financeiro independente.</p>
+        <p>Ao iniciar um novo ciclo, o sistema carrega novamente as rendas recorrentes, como salários, e as despesas recorrentes ativas. Contas de valor variável podem ser atualizadas no novo mês sem alterar competências anteriores.</p>
+        <p>A geração é protegida contra duplicidade: executar novamente a abertura da mesma competência não cria os mesmos lançamentos duas vezes.</p>
+      </section>
+
+<section class="panel dln-footer">
         <strong>FinPlanner Web</strong>
         <span>Desenvolvido por Fernando Vieira</span>
       </section>
@@ -567,6 +626,6 @@
 <script>
 window.FINPLANNER_CONFIG={SUPABASE_URL:"https://waytzrygkhyntrwktwlo.supabase.co",SUPABASE_PUBLISHABLE_KEY:"sb_publishable_e9oRHKY_QqUD5QP68DDX2Q_u7ZbbQTO"};
 </script>
-<script src="app.js?v=1.7"></script>
+<script src="app.js?v=1.8"></script>
 </body>
 </html>

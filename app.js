@@ -345,23 +345,78 @@ async function abrirApp(){
       localStorage.setItem('fp_admin','0');
     }
   }
- let now=new Date();competencia.value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+ let now=new Date();
+ competencia.value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+ if(document.getElementById('competenciaPagas')) competenciaPagas.value=competencia.value;
  await carregarGrupoAtual();
  await atualizarTudo();
 }
 function sair(){localStorage.clear();location.reload()}
 function toggleMenu(){sidebar.classList.toggle('open')}
-function showView(v,b){document.querySelectorAll('.app-section').forEach(x=>x.classList.add('hidden'));document.getElementById('view-'+v).classList.remove('hidden');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));b?.classList.add('active');sidebar.classList.remove('open');if(v==='recorrentes')loadRecorrentes();if(v==='receitas')loadReceitas();if(v==='lancamentos')loadLancamentos();if(v==='cartoes')loadCartoes();if(v==='contas')loadContas();if(v==='alertas')loadPreferenciasAlerta();if(v==='usuarios')loadUsuarios();}
+function showView(v,b){document.querySelectorAll('.app-section').forEach(x=>x.classList.add('hidden'));document.getElementById('view-'+v).classList.remove('hidden');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));b?.classList.add('active');sidebar.classList.remove('open');if(v==='recorrentes')loadRecorrentes();if(v==='receitas')loadReceitas();if(v==='lancamentos')loadLancamentos();if(v==='cartoes')loadCartoes();if(v==='contas')loadContas();if(v==='alertas')loadPreferenciasAlerta();if(v==='usuarios')loadUsuarios();if(v==='pagas')loadContasPagas();}
 function compDate(){return competencia.value+'-01'}
 function monthRange(){let [y,m]=competencia.value.split('-').map(Number);let n=new Date(y,m,1);return [competencia.value+'-01',`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-01`]}
-async function trocarCompetencia(){await atualizarTudo()}
-async function atualizarTudo(){await Promise.all([loadDashboard(),loadLancamentos(),loadRecorrentes(),loadReceitas(),loadCartoes(),loadContas(),loadCompras()])}
+async function trocarCompetencia(){
+ if(document.getElementById('competenciaPagas')) competenciaPagas.value=competencia.value;
+ await atualizarTudo();
+}
+async function atualizarTudo(){await Promise.all([loadDashboard(),loadLancamentos(),loadRecorrentes(),loadReceitas(),loadCartoes(),loadContas(),loadCompras(),verificarCicloMensal()])}
 
 async function gerarCompetencia(){
+ return iniciarNovoCiclo();
+}
+
+function addMonthsToCompetencia(comp, qtd){
+ const [y,m]=comp.split('-').map(Number);
+ const d=new Date(y,m-1+qtd,1);
+ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+async function verificarCicloMensal(){
+ if(!competencia.value || !document.getElementById('statusCiclo'))return;
  try{
-  await api('/rest/v1/rpc/fn_gerar_competencia',{method:'POST',body:JSON.stringify({p_competencia:compDate()})});
-  msg('dashboardMessage','Competência gerada/atualizada com sucesso.','success');await atualizarTudo();
- }catch(e){msg('dashboardMessage','Erro ao gerar competência: '+e.message,'error')}
+   const ini=compDate();
+   const dados=await api(`/rest/v1/lancamentos?select=id&competencia=eq.${ini}&limit=1`);
+   if(dados?.length){
+     statusCiclo.textContent='Ciclo iniciado. As movimentações desta competência permanecem independentes dos outros meses.';
+   }else{
+     statusCiclo.textContent='Este mês ainda não possui lançamentos. Inicie o ciclo para carregar salários e contas recorrentes.';
+   }
+   const prox=addMonthsToCompetencia(competencia.value,1);
+   const [py,pm]=prox.split('-');
+   btnProximoCiclo.textContent=`Iniciar ${new Date(Number(py),Number(pm)-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}`;
+ }catch(e){
+   statusCiclo.textContent='Não foi possível verificar o ciclo: '+e.message;
+ }
+}
+
+async function iniciarNovoCiclo(compAlvo=null){
+ const alvo=compAlvo || competencia.value;
+ if(!alvo)return;
+
+ try{
+   const [y,m]=alvo.split('-').map(Number);
+   const rotulo=new Date(y,m-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+   const confirmar=confirm(`Iniciar o ciclo de ${rotulo}?\n\nSerão carregadas as rendas e contas recorrentes ativas. Lançamentos já existentes não serão duplicados.`);
+   if(!confirmar)return;
+
+   await api('/rest/v1/rpc/fn_iniciar_ciclo_mensal',{
+     method:'POST',
+     body:JSON.stringify({p_competencia:`${alvo}-01`})
+   });
+
+   competencia.value=alvo;
+   if(document.getElementById('competenciaPagas')) competenciaPagas.value=alvo;
+   msg('dashboardMessage',`Ciclo de ${rotulo} iniciado/atualizado com sucesso.`,'success');
+   await atualizarTudo();
+ }catch(e){
+   msg('dashboardMessage','Erro ao iniciar ciclo mensal: '+e.message,'error');
+ }
+}
+
+async function iniciarProximoCiclo(){
+ const prox=addMonthsToCompetencia(competencia.value,1);
+ await iniciarNovoCiclo(prox);
 }
 
 async function loadDashboard(){
@@ -439,6 +494,88 @@ function rowLanc(x){
  <button class="mini delete" onclick='excluirLancamento("${x.id}","${String(x.descricao).replace(/"/g,'&quot;')}")'>Excluir</button>
  ${x.linha_digitavel?`<button class="mini copy" onclick="copiar('${encodeURIComponent(x.linha_digitavel)}')">Copiar linha</button>`:''}
  </div></div></div>`;
+}
+
+
+async function loadContasPagas(){
+ if(!tok() || !document.getElementById('listaContasPagas'))return;
+
+ const comp=(competenciaPagas?.value || competencia.value);
+ if(!comp)return;
+
+ const ini=comp+'-01';
+
+ try{
+   // Primeiro localiza as despesas pagas da competência.
+   const lancs=await api(
+     `/rest/v1/lancamentos?select=id,descricao,data_vencimento,valor_original,competencia,status,tipo&competencia=eq.${ini}&tipo=eq.D&status=eq.PAGO&order=data_vencimento.asc`
+   );
+
+   if(!lancs?.length){
+     totalContasPagas.textContent=money(0);
+     qtdContasPagas.textContent='0';
+     listaContasPagas.innerHTML='<p class="muted">Nenhuma conta paga nesta competência.</p>';
+     return;
+   }
+
+   const ids=lancs.map(x=>x.id);
+   const inIds='('+ids.join(',')+')';
+
+   const [pags, contas] = await Promise.all([
+     api(`/rest/v1/pagamentos?select=id,lancamento_id,conta_pagamento_id,valor_pago,data_pagamento,juros,multa,desconto&lancamento_id=in.${inIds}&order=data_pagamento.desc`),
+     api('/rest/v1/contas?select=id,descricao,banco')
+   ]);
+
+   const pagamentoPorLanc=new Map();
+   (pags||[]).forEach(p=>{
+     if(!pagamentoPorLanc.has(p.lancamento_id)) pagamentoPorLanc.set(p.lancamento_id,p);
+   });
+
+   const contaPorId=new Map((contas||[]).map(c=>[c.id,c]));
+
+   const linhas=lancs.map(l=>{
+     const p=pagamentoPorLanc.get(l.id);
+     const c=p?.conta_pagamento_id ? contaPorId.get(p.conta_pagamento_id) : null;
+     const banco=c ? (c.banco ? `${c.descricao} - ${c.banco}` : c.descricao) : 'Não informado';
+     const valor=p?.valor_pago ?? l.valor_original;
+     return {
+       ...l,
+       data_pagamento:p?.data_pagamento || null,
+       valor_pago:Number(valor||0),
+       banco
+     };
+   });
+
+   const total=linhas.reduce((s,x)=>s+x.valor_pago,0);
+   totalContasPagas.textContent=money(total);
+   qtdContasPagas.textContent=String(linhas.length);
+
+   listaContasPagas.innerHTML=`
+     <table class="table">
+       <thead>
+         <tr>
+           <th>Descrição</th>
+           <th>Vencimento</th>
+           <th>Pago em</th>
+           <th>Valor pago</th>
+           <th>Conta/Banco</th>
+         </tr>
+       </thead>
+       <tbody>
+         ${linhas.map(x=>`
+           <tr>
+             <td>${esc(x.descricao)}</td>
+             <td>${dataBR(x.data_vencimento)}</td>
+             <td>${x.data_pagamento?dataBR(x.data_pagamento):'-'}</td>
+             <td>${money(x.valor_pago)}</td>
+             <td>${esc(x.banco)}</td>
+           </tr>
+         `).join('')}
+       </tbody>
+     </table>`;
+ }catch(e){
+   listaContasPagas.innerHTML=`<div class="message error">Erro ao carregar contas pagas: ${esc(e.message||String(e))}</div>`;
+ }
 }
 
 async function loadLancamentos(){
@@ -695,6 +832,7 @@ async function salvarPagamento(){
 
     modalPagamento.classList.add('hidden');
     await atualizarTudo();
+    if(document.getElementById('competenciaPagas')) await loadContasPagas();
   }catch(e){
     msg('pagMsg','Erro ao registrar pagamento: '+e.message,'error');
   }
