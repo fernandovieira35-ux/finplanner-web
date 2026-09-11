@@ -1,0 +1,66 @@
+FINPLANNER WEB 1.7 - SEQUÊNCIA DE ATUALIZAÇÃO
+
+1) SUPABASE > SQL EDITOR
+   Execute:
+   FinPlanner_1_7_Atualizacao_Banco.sql
+
+2) SUPABASE > EDGE FUNCTIONS > finplanner-admin-users
+   Substitua TODO o index.ts pelo conteúdo:
+   EDGE_finplanner-admin-users_index_V1_7.ts
+   Clique em Deploy.
+
+3) SUPABASE > EDGE FUNCTIONS > finplanner-alertas
+   Substitua TODO o index.ts pelo conteúdo:
+   EDGE_finplanner-alertas_index_V1_7.ts
+   Clique em Deploy.
+
+4) TESTE A FUNÇÃO DE ALERTAS
+   No FinPlanner > Alertas:
+   clique em "Verificar serviço".
+   Resultado esperado:
+   "Serviço de alertas online."
+
+   Se funcionar, CORS e deploy estão corretos.
+
+5) GITHUB
+   Substitua os arquivos da raiz:
+   - index.html
+   - app.js
+   - styles.css
+   - manifest.json (se estiver presente)
+   - pasta assets (mantenha/atualize)
+
+6) COMMIT NO GITHUB
+   Exemplo:
+   FinPlanner Web 1.7 consolidado
+
+7) RENDER
+   Aguarde Deploy succeeded.
+
+8) NAVEGADOR
+   Use Ctrl + F5.
+   Confirme no login:
+   "Desenvolvido por Fernando Vieira"
+   "FinPlanner Web v1.7"
+
+   Dentro do sistema, confirme:
+   "DLN / Ajuda"
+
+9) E-MAIL
+   O botão Testar e-mail só envia após configurar em
+   Supabase > Edge Functions > Secrets:
+   - RESEND_API_KEY
+   - ALERT_EMAIL_FROM
+
+10) WHATSAPP
+    Só envia após configurar:
+    - WHATSAPP_TOKEN
+    - WHATSAPP_PHONE_NUMBER_ID
+    - WHATSAPP_GRAPH_VERSION
+    - WHATSAPP_TEMPLATE_NAME
+    - WHATSAPP_TEMPLATE_LANGUAGE
+
+IMPORTANTE:
+- index.html vai para GitHub/Render.
+- index.ts vai para Supabase Edge Functions.
+- Nunca cole index.html dentro de uma Edge Function.

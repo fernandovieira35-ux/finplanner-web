@@ -398,3 +398,37 @@ pagamentos.conta_pagamento_id
 4. Atualize os arquivos web no GitHub
 5. Aguarde o redeploy do Render
 6. Configure os Secrets de e-mail/WhatsApp antes de testar os canais
+
+
+# FinPlanner Web 1.6 - Identificação do desenvolvedor e DLN
+
+## Login
+Incluído:
+`Desenvolvido por Fernando Vieira`
+
+## DLN / Ajuda
+Novo menu:
+`DLN / Ajuda`
+
+Conteúdo:
+- Visão geral
+- Login e acesso
+- Usuários e permissões
+- Rendas
+- Contas mensais
+- Lançamentos
+- Pagamentos
+- Cartões
+- Alertas
+- Financeiro compartilhado
+- Dashboard e cálculos
+- Publicação e atualização Web
+
+Também foi incluído o botão:
+`Imprimir DLN`
+
+Essa versão não exige nova migração no Supabase.
+
+
+# V1.7 consolidada
+Esta versão consolida DLN, crédito de desenvolvimento, permissões, banco do pagamento e Edge Function de alertas corrigida. Ver LEIA-ME-PRIMEIRO_ATUALIZACAO_1_7.txt.

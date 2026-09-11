@@ -1078,10 +1078,15 @@ async function salvarPreferenciasAlerta(){
 
 async function testarAlerta(canal){
   hide('alertTestMsg');
+
   try{
     await salvarPreferenciasAlerta();
-    const r=await fetch(CFG.SUPABASE_URL+'/functions/v1/finplanner-alertas',{
+
+    const endpoint=CFG.SUPABASE_URL+'/functions/v1/finplanner-alertas';
+
+    const r=await fetch(endpoint,{
       method:'POST',
+      mode:'cors',
       headers:{
         'apikey':CFG.SUPABASE_PUBLISHABLE_KEY,
         'Authorization':'Bearer '+tok(),
@@ -1089,12 +1094,61 @@ async function testarAlerta(canal){
       },
       body:JSON.stringify({mode:'test',channel:canal})
     });
-    const t=await r.text();let d={};try{d=JSON.parse(t)}catch{d={message:t}}
-    if(!r.ok)throw new Error(d?.error||d?.message||'Falha no teste');
-    msg('alertTestMsg',(canal==='email'?'E-mail':'WhatsApp')+' de teste solicitado com sucesso.','success');
+
+    const t=await r.text();
+    let d={};
+    try{d=t?JSON.parse(t):{}}catch{d={message:t}}
+
+    if(!r.ok){
+      throw new Error(d?.error||d?.message||`HTTP ${r.status}`);
+    }
+
+    msg(
+      'alertTestMsg',
+      (canal==='email'?'E-mail':'WhatsApp')+
+      ' de teste processado pela Edge Function com sucesso.',
+      'success'
+    );
   }catch(e){
-    msg('alertTestMsg','Teste não concluído: '+e.message+
-      '. Verifique se a Edge Function finplanner-alertas foi publicada e se as credenciais do canal estão configuradas no Supabase.','error');
+    const detalhe=e?.message||String(e);
+    msg(
+      'alertTestMsg',
+      'Teste não concluído: '+detalhe+
+      '. Confirme se a função finplanner-alertas está DEPLOYED no Supabase. Se a mensagem continuar como Failed to fetch, verifique CORS/OPTIONS da função.',
+      'error'
+    );
+  }
+}
+
+async function verificarServicoAlertas(){
+  hide('alertTestMsg');
+  try{
+    const endpoint=CFG.SUPABASE_URL+'/functions/v1/finplanner-alertas';
+    const r=await fetch(endpoint,{
+      method:'POST',
+      mode:'cors',
+      headers:{
+        'apikey':CFG.SUPABASE_PUBLISHABLE_KEY,
+        'Authorization':'Bearer '+tok(),
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify({mode:'health'})
+    });
+
+    const t=await r.text();
+    let d={};
+    try{d=t?JSON.parse(t):{}}catch{d={message:t}}
+
+    if(!r.ok) throw new Error(d?.error||d?.message||`HTTP ${r.status}`);
+
+    msg('alertTestMsg','Serviço de alertas online. Edge Function respondeu corretamente.','success');
+  }catch(e){
+    msg(
+      'alertTestMsg',
+      'Serviço de alertas indisponível: '+(e?.message||String(e))+
+      '. Abra Supabase > Edge Functions > finplanner-alertas e confirme o Deploy.',
+      'error'
+    );
   }
 }
 
