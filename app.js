@@ -107,6 +107,64 @@ async function criarUsuario(){
 }
 
 
+
+function abrirResetFinanceiro(){
+  if(localStorage.getItem('fp_admin')!=='1'){
+    alert('Apenas administradores podem executar esta operação.');
+    return;
+  }
+  resetConfirmacao.value='';
+  hide('resetFinanceiroMsg');
+  modalResetFinanceiro.classList.remove('hidden');
+}
+
+async function confirmarResetFinanceiro(){
+  hide('resetFinanceiroMsg');
+
+  if(localStorage.getItem('fp_admin')!=='1'){
+    msg('resetFinanceiroMsg','Acesso restrito a administradores.','error');
+    return;
+  }
+
+  if(resetConfirmacao.value.trim()!=='EXCLUIR FINANCEIRO'){
+    msg('resetFinanceiroMsg','Digite exatamente EXCLUIR FINANCEIRO para confirmar.','error');
+    return;
+  }
+
+  if(!confirm('Confirma a exclusão definitiva de todos os dados financeiros do grupo? Usuários e logins serão preservados.')){
+    return;
+  }
+
+  try{
+    const r=await fetch(CFG.SUPABASE_URL+'/functions/v1/finplanner-admin-users',{
+      method:'POST',
+      headers:{
+        'apikey':CFG.SUPABASE_PUBLISHABLE_KEY,
+        'Authorization':'Bearer '+tok(),
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify({action:'reset_financial'})
+    });
+
+    const t=await r.text();
+    let d={};
+    try{d=JSON.parse(t)}catch{d={message:t}}
+    if(!r.ok)throw new Error(d?.error||d?.message||'Erro ao excluir dados financeiros');
+
+    msg('resetFinanceiroMsg','Informações financeiras excluídas. Usuários e acessos foram preservados.','success');
+
+    setTimeout(async()=>{
+      modalResetFinanceiro.classList.add('hidden');
+      competencia.value=new Date().toISOString().slice(0,7);
+      if(document.getElementById('competenciaPagas')) competenciaPagas.value=competencia.value;
+      await atualizarTudo();
+    },900);
+  }catch(e){
+    msg('resetFinanceiroMsg','Não foi possível excluir os dados: '+e.message,'error');
+  }
+}
+
+
 async function loadUsuarios(){
   if(localStorage.getItem('fp_admin')!=='1'){
     usuariosMsg.textContent='Acesso restrito a administradores.';
@@ -339,9 +397,11 @@ async function abrirApp(){
     usuarioNome.textContent=p[0].nome||p[0].email;
     if(p[0].administrador===true){
       navUsuarios.classList.remove('hidden');
+      if(document.getElementById('adminFinanceTools')) adminFinanceTools.classList.remove('hidden');
       localStorage.setItem('fp_admin','1');
     }else{
       navUsuarios.classList.add('hidden');
+      if(document.getElementById('adminFinanceTools')) adminFinanceTools.classList.add('hidden');
       localStorage.setItem('fp_admin','0');
     }
   }
@@ -636,7 +696,8 @@ async function salvarReceita(adicionarOutra=false){
    payload.usuario_id=uid();
    payload.grupo_id=gid();
    payload.ativo=true;
-   await api('/rest/v1/receitas_recorrentes',{method:'POST',body:JSON.stringify(payload)});
+   const criada=await api('/rest/v1/receitas_recorrentes?select=id',{method:'POST',body:JSON.stringify(payload),headers:{'Prefer':'return=representation'}});
+    if(criada?.[0]?.id) await sincronizarRendaRecorrenteFutura(criada[0].id);
   }
 
   await Promise.all([loadReceitas(),loadDashboard()]);
@@ -655,12 +716,37 @@ async function salvarReceita(adicionarOutra=false){
 }
 
 async function excluirReceita(id,descricao){
- if(!confirm(`Deseja excluir a renda recorrente "${descricao}"?\n\nOs lançamentos mensais já gerados serão mantidos.`))return;
- try{
-  await api(`/rest/v1/receitas_recorrentes?id=eq.${id}`,{method:'DELETE'});
-  await Promise.all([loadReceitas(),loadDashboard()]);
- }catch(e){alert('Não foi possível excluir: '+e.message)}
+  return excluirRendaRecorrenteComFuturos(id,descricao);
 }
+
+
+async function sincronizarRendaRecorrenteFutura(receitaId){
+  if(!receitaId)return;
+  try{
+    await api('/rest/v1/rpc/fn_sincronizar_renda_recorrente_futura',{
+      method:'POST',
+      body:JSON.stringify({p_receita_id:receitaId})
+    });
+  }catch(e){
+    console.warn('Não foi possível sincronizar a renda recorrente nos meses futuros:',e);
+  }
+}
+
+async function excluirRendaRecorrenteComFuturos(id,descricao){
+  if(!confirm(`Excluir a renda recorrente "${descricao}"?\n\nOs lançamentos futuros pendentes gerados por esta renda também serão removidos. O histórico passado será mantido.`))return;
+
+  try{
+    await api('/rest/v1/rpc/fn_excluir_renda_recorrente_futura',{
+      method:'POST',
+      body:JSON.stringify({p_receita_id:id})
+    });
+    await api(`/rest/v1/receitas_recorrentes?id=eq.${id}`,{method:'DELETE'});
+    await atualizarTudo();
+  }catch(e){
+    alert('Erro ao excluir renda recorrente: '+e.message);
+  }
+}
+
 
 async function loadReceitas(){
  if(!tok())return;

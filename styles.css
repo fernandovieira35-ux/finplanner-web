@@ -170,3 +170,39 @@ button{font:inherit;cursor:pointer}.primary{border:0;background:var(--primary);c
   .month-filter{width:100%;align-items:stretch;flex-direction:column}
   .month-filter input{width:100%}
 }
+
+.danger-zone{margin-top:18px}
+.danger-box{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  border:1px solid #fecaca;
+  background:#fff7f7;
+  border-radius:12px;
+  padding:16px;
+}
+.danger-box p{margin:6px 0 0;color:#7f1d1d;line-height:1.5}
+.danger-btn{
+  border:1px solid #dc2626;
+  background:#dc2626;
+  color:#fff;
+  border-radius:9px;
+  padding:10px 14px;
+  cursor:pointer;
+  font-weight:600;
+}
+.danger-btn:hover{background:#b91c1c}
+.danger-warning{
+  border:1px solid #fecaca;
+  background:#fef2f2;
+  color:#991b1b;
+  padding:13px 14px;
+  border-radius:10px;
+  line-height:1.5;
+  margin-bottom:14px;
+}
+@media(max-width:760px){
+  .danger-box{flex-direction:column;align-items:stretch}
+  .danger-btn{width:100%}
+}

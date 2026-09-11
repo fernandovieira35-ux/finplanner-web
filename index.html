@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FinPlanner Web 1.8</title>
+<title>FinPlanner Web 1.9</title>
 <link rel="icon" href="assets/favicon.ico">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#111827">
-<link rel="stylesheet" href="styles.css?v=1.8">
+<link rel="stylesheet" href="styles.css?v=1.9">
 </head>
 <body>
 
@@ -19,7 +19,7 @@
     <label>Senha</label><input id="senha" type="password">
     <button id="btnEntrar" class="primary full" onclick="entrar()">Entrar</button>
     <div class="login-actions single"><button class="link-action" onclick="abrirRecuperacaoSenha()">Esqueci minha senha</button></div>
-    <div class="login-credit">Desenvolvido por <strong>Fernando Vieira</strong><br><span class="version-tag">FinPlanner Web v1.8</span></div>
+    <div class="login-credit">Desenvolvido por <strong>Fernando Vieira</strong><br><span class="version-tag">FinPlanner Web v1.9</span></div>
   </div>
 </section>
 
@@ -27,7 +27,7 @@
 <header class="topbar">
   <button class="menu-btn" onclick="toggleMenu()">☰</button>
   <div class="header-brand"><img src="assets/logo-64.png" alt="FinPlanner"><strong>FinPlanner</strong></div>
-  <span class="app-version">v1.8</span><div class="user-area"><span>🔔</span><span id="usuarioNome">Usuário</span><button onclick="sair()" class="secondary">Sair</button></div>
+  <span class="app-version">v1.9</span><div class="user-area"><span>🔔</span><span id="usuarioNome">Usuário</span><button onclick="sair()" class="secondary">Sair</button></div>
 </header>
 
 <div class="shell">
@@ -241,6 +241,21 @@
 
   <div id="usuariosMsg" class="message hidden"></div>
 
+  <section id="adminFinanceTools" class="panel danger-zone hidden">
+    <div>
+      <h3>Zona administrativa</h3>
+      <p class="muted">Ferramentas restritas ao administrador do FinPlanner.</p>
+    </div>
+    <div class="danger-box">
+      <div>
+        <strong>Excluir todas as informações financeiras</strong>
+        <p>Apaga movimentações, pagamentos, contas, rendas, cartões, recorrências, alertas e histórico financeiro. Usuários, logins e permissões são preservados.</p>
+      </div>
+      <button class="danger-btn" onclick="abrirResetFinanceiro()">Excluir dados financeiros</button>
+    </div>
+  </section>
+
+
   <div class="access-toolbar">
     <div>
       <strong>Gerenciamento de acessos</strong>
@@ -281,6 +296,8 @@
       <a href="#dln-web">12. Publicação Web</a>
       <a href="#dln-pagas">13. Contas pagas</a>
       <a href="#dln-ciclo">14. Ciclo mensal</a>
+      <a href="#dln-admin-reset">15. Administração financeira</a>
+      <a href="#dln-renda-vigente">16. Atualização de rendas</a>
     </aside>
 
     <div class="dln-content">
@@ -387,6 +404,19 @@
         <p>Cada competência funciona como um ciclo financeiro independente.</p>
         <p>Ao iniciar um novo ciclo, o sistema carrega novamente as rendas recorrentes, como salários, e as despesas recorrentes ativas. Contas de valor variável podem ser atualizadas no novo mês sem alterar competências anteriores.</p>
         <p>A geração é protegida contra duplicidade: executar novamente a abertura da mesma competência não cria os mesmos lançamentos duas vezes.</p>
+      </section>
+
+
+      <section id="dln-admin-reset" class="panel dln-section">
+        <h3>15. Administração financeira</h3>
+        <p>Administradores possuem uma área restrita para excluir todas as informações financeiras do grupo atual.</p>
+        <p>A operação exige confirmação textual e preserva usuários, logins, perfis e permissões de acesso.</p>
+      </section>
+
+      <section id="dln-renda-vigente" class="panel dln-section">
+        <h3>16. Atualização de rendas recorrentes</h3>
+        <p>Quando um salário ou outra renda recorrente é reajustado, os lançamentos futuros ainda pendentes passam a refletir o valor atualizado.</p>
+        <p>Ao excluir uma renda recorrente, apenas lançamentos futuros pendentes gerados por ela são removidos. Competências passadas e valores já pagos permanecem no histórico.</p>
       </section>
 
 <section class="panel dln-footer">
@@ -591,6 +621,35 @@
   </div>
 </div>
 
+
+<!-- RESET FINANCEIRO ADMINISTRATIVO -->
+<div id="modalResetFinanceiro" class="modal hidden">
+  <div class="modal-box small-modal">
+    <div class="modal-head">
+      <div>
+        <h3>Excluir informações financeiras</h3>
+        <p>Esta ação é permanente.</p>
+      </div>
+      <button class="close" onclick="modalResetFinanceiro.classList.add('hidden')">×</button>
+    </div>
+
+    <div class="danger-warning">
+      Serão removidos dados financeiros do grupo atual, incluindo contas, rendas, lançamentos, pagamentos, cartões, recorrências, alertas e históricos relacionados.
+      <strong>Usuários e logins não serão excluídos.</strong>
+    </div>
+
+    <label>Para confirmar, digite <strong>EXCLUIR FINANCEIRO</strong></label>
+    <input id="resetConfirmacao" autocomplete="off" placeholder="EXCLUIR FINANCEIRO">
+
+    <div id="resetFinanceiroMsg" class="message hidden"></div>
+
+    <div class="modal-actions">
+      <button class="secondary" onclick="modalResetFinanceiro.classList.add('hidden')">Cancelar</button>
+      <button class="danger-btn" onclick="confirmarResetFinanceiro()">Excluir definitivamente</button>
+    </div>
+  </div>
+</div>
+
 <!-- RECUPERAÇÃO DE SENHA -->
 <div id="modalRecuperarSenha" class="modal hidden">
   <div class="modal-box small-modal">
@@ -626,6 +685,6 @@
 <script>
 window.FINPLANNER_CONFIG={SUPABASE_URL:"https://waytzrygkhyntrwktwlo.supabase.co",SUPABASE_PUBLISHABLE_KEY:"sb_publishable_e9oRHKY_QqUD5QP68DDX2Q_u7ZbbQTO"};
 </script>
-<script src="app.js?v=1.8"></script>
+<script src="app.js?v=1.9"></script>
 </body>
 </html>
