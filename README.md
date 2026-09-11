@@ -338,3 +338,17 @@ Também foi adicionado um segundo atalho na área de gerenciamento para facilita
 a criação de vários acessos em sequência.
 
 Não é necessária nova migração no banco.
+
+# FinPlanner Web 1.4 - Compartilhamento financeiro
+
+Permite criar um acesso que utiliza o mesmo financeiro do proprietário.
+
+No cadastro do usuário:
+- Compartilhar meu financeiro
+- Pode visualizar, incluir e alterar
+- Pode excluir
+
+Passos:
+1. Execute `FinPlanner_1_4_Migracao_Compartilhamento.sql` no Supabase.
+2. Atualize/deploy a Edge Function `finplanner-admin-users`.
+3. Publique os arquivos web no GitHub/Render.

@@ -40,6 +40,9 @@ function abrirCadastroUsuario(){
   cadSenha2.value='';
   cadAdministrador.checked=false;
   cadAtivo.checked=true;
+  cadCompartilharFinanceiro.checked=true;
+  cadPodeEditar.checked=true;
+  cadPodeExcluir.checked=false;
   hide('cadUserMsg');
   modalCadastroUsuario.classList.remove('hidden');
 }
@@ -81,7 +84,10 @@ async function criarUsuario(){
         email:em,
         password:pw,
         administrador:cadAdministrador.checked,
-        ativo:cadAtivo.checked
+        ativo:cadAtivo.checked,
+        compartilhar_financeiro:cadCompartilharFinanceiro.checked,
+        pode_editar:cadPodeEditar.checked,
+        pode_excluir:cadPodeExcluir.checked
       })
     });
 
@@ -254,6 +260,18 @@ async function salvarNovaSenha(){
   }catch(e){msg('newPasswordMsg',e.message,'error')}
 }
 
+async function carregarGrupoAtual(){
+  try{
+    const d=await api('/rest/v1/grupo_membros?select=grupo_id,pode_editar,pode_excluir&usuario_id=eq.'+uid()+'&limit=1');
+    if(d?.length){
+      localStorage.setItem('fp_grupo_id',d[0].grupo_id);
+      localStorage.setItem('fp_grupo_editar',d[0].pode_editar?'1':'0');
+      localStorage.setItem('fp_grupo_excluir',d[0].pode_excluir?'1':'0');
+    }
+  }catch(e){console.warn('Grupo financeiro não carregado:',e)}
+}
+const gid=()=>localStorage.getItem('fp_grupo_id')||'';
+
 async function abrirApp(){
  loginView.classList.add('hidden');appView.classList.remove('hidden');
  let p=await api('/rest/v1/perfis?select=nome,email,administrador,ativo&limit=1'); if(p?.length){
@@ -267,6 +285,7 @@ async function abrirApp(){
     }
   }
  let now=new Date();competencia.value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+ await carregarGrupoAtual();
  await atualizarTudo();
 }
 function sair(){localStorage.clear();location.reload()}
@@ -417,6 +436,7 @@ async function salvarReceita(adicionarOutra=false){
    });
   }else{
    payload.usuario_id=uid();
+   payload.grupo_id=gid();
    payload.ativo=true;
    await api('/rest/v1/receitas_recorrentes',{method:'POST',body:JSON.stringify(payload)});
   }
@@ -515,6 +535,7 @@ async function salvarContaRecorrente(){
     });
   }else{
     payload.usuario_id=uid();
+    payload.grupo_id=gid();
     payload.ativo=true;
     await api('/rest/v1/contas_recorrentes',{
       method:'POST',
@@ -607,6 +628,7 @@ async function salvarConta(){
     });
   }else{
     payload.usuario_id=uid();
+    payload.grupo_id=gid();
     payload.ativo=true;
     await api('/rest/v1/contas',{
       method:'POST',
@@ -691,6 +713,7 @@ async function salvarCartao(){
    await api(`/rest/v1/cartoes?id=eq.${cartaoId.value}`,{method:'PATCH',body:JSON.stringify(payload)});
   }else{
    payload.usuario_id=uid();
+   payload.grupo_id=gid();
    payload.ativo=true;
    await api('/rest/v1/cartoes',{method:'POST',body:JSON.stringify(payload)});
   }
@@ -793,7 +816,7 @@ async function salvarCompra(){
     method:'POST',
     headers:{Prefer:'return=representation'},
     body:JSON.stringify({
-      usuario_id:uid(),cartao_id:compraCartao.value,descricao:compraDescricao.value.trim(),
+      usuario_id:uid(),grupo_id:gid(),cartao_id:compraCartao.value,descricao:compraDescricao.value.trim(),
       valor_total:total,quantidade_parcelas:parcelas,data_compra:compraData.value,primeira_competencia:comp
     })
    });

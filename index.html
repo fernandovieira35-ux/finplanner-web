@@ -313,6 +313,12 @@
 
     <label class="check-row"><input id="cadAdministrador" type="checkbox"> Administrador</label>
     <label class="check-row"><input id="cadAtivo" type="checkbox" checked> Usuário ativo</label>
+    <div class="share-box">
+      <strong>Acesso ao financeiro compartilhado</strong>
+      <label class="check-row"><input id="cadCompartilharFinanceiro" type="checkbox" checked> Compartilhar meu financeiro com este usuário</label>
+      <label class="check-row"><input id="cadPodeEditar" type="checkbox" checked> Pode visualizar, incluir e alterar movimentações</label>
+      <label class="check-row"><input id="cadPodeExcluir" type="checkbox"> Pode excluir movimentações</label>
+    </div>
     <div class="modal-actions">
       <button class="secondary" onclick="modalCadastroUsuario.classList.add('hidden')">Cancelar</button>
       <button class="primary" onclick="criarUsuario()">Criar usuário</button>
