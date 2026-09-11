@@ -352,3 +352,79 @@ Passos:
 1. Execute `FinPlanner_1_4_Migracao_Compartilhamento.sql` no Supabase.
 2. Atualize/deploy a Edge Function `finplanner-admin-users`.
 3. Publique os arquivos web no GitHub/Render.
+
+
+# FinPlanner Web 1.5
+
+## Usuários
+Foi adicionado o botão `Editar` na listagem de usuários.
+
+Permissões editáveis:
+- Compartilhar financeiro
+- Visualizar movimentações
+- Incluir/alterar movimentações
+- Excluir movimentações
+- Ativo
+- Administrador
+
+## Alertas
+O erro `Failed to fetch` era compatível com Edge Function ausente/não publicada ou CORS.
+A função `finplanner-alertas/index.ts` desta versão contém tratamento de CORS.
+
+Novos campos:
+- Início dos disparos (data e hora)
+- Fim dos disparos (data e hora)
+
+O teste manual ignora a janela de disparo.
+Os alertas automáticos respeitam o início/fim.
+
+Para o envio real:
+- E-mail: configurar RESEND_API_KEY e ALERT_EMAIL_FROM
+- WhatsApp: configurar WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID,
+  WHATSAPP_GRAPH_VERSION, WHATSAPP_TEMPLATE_NAME e WHATSAPP_TEMPLATE_LANGUAGE
+- Cron: configurar CRON_SECRET e publicar/agendar a função
+
+## Pagamento
+Ao marcar uma conta como paga, agora é obrigatório escolher:
+`Conta/Banco utilizado no pagamento`
+
+O banco é salvo em:
+pagamentos.conta_pagamento_id
+
+## Ordem de atualização
+1. Execute `FinPlanner_1_5_Migracao_Permissoes_Alertas_Banco.sql`
+2. Publique novamente `finplanner-admin-users`
+3. Publique `finplanner-alertas`
+4. Atualize os arquivos web no GitHub
+5. Aguarde o redeploy do Render
+6. Configure os Secrets de e-mail/WhatsApp antes de testar os canais
+
+
+# FinPlanner Web 1.6 - Identificação do desenvolvedor e DLN
+
+## Login
+Incluído:
+`Desenvolvido por Fernando Vieira`
+
+## DLN / Ajuda
+Novo menu:
+`DLN / Ajuda`
+
+Conteúdo:
+- Visão geral
+- Login e acesso
+- Usuários e permissões
+- Rendas
+- Contas mensais
+- Lançamentos
+- Pagamentos
+- Cartões
+- Alertas
+- Financeiro compartilhado
+- Dashboard e cálculos
+- Publicação e atualização Web
+
+Também foi incluído o botão:
+`Imprimir DLN`
+
+Essa versão não exige nova migração no Supabase.

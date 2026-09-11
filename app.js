@@ -41,6 +41,7 @@ function abrirCadastroUsuario(){
   cadAdministrador.checked=false;
   cadAtivo.checked=true;
   cadCompartilharFinanceiro.checked=true;
+  cadPodeVisualizar.checked=true;
   cadPodeEditar.checked=true;
   cadPodeExcluir.checked=false;
   hide('cadUserMsg');
@@ -86,6 +87,7 @@ async function criarUsuario(){
         administrador:cadAdministrador.checked,
         ativo:cadAtivo.checked,
         compartilhar_financeiro:cadCompartilharFinanceiro.checked,
+        pode_visualizar:cadPodeVisualizar.checked,
         pode_editar:cadPodeEditar.checked,
         pode_excluir:cadPodeExcluir.checked
       })
@@ -138,6 +140,7 @@ async function loadUsuarios(){
             <th>E-mail</th>
             <th>Administrador</th>
             <th>Ativo</th>
+            <th>Permissões</th>
             <th>Ações</th>
           </tr>
         </thead>
@@ -149,7 +152,13 @@ async function loadUsuarios(){
               <td>${u.administrador?'Sim':'Não'}</td>
               <td>${u.ativo?'Sim':'Não'}</td>
               <td>
+                ${u.compartilhado
+                  ? `${u.pode_visualizar?'Visualizar':''}${u.pode_editar?' / Editar':''}${u.pode_excluir?' / Excluir':''}`
+                  : 'Sem compartilhamento'}
+              </td>
+              <td>
                 <div class="actions">
+                  <button class="mini edit" onclick='abrirEditarUsuario(${JSON.stringify(u)})'>Editar</button>
                   <button class="mini edit" onclick='alterarStatusUsuario("${u.id}",${!u.ativo})'>${u.ativo?'Desativar':'Ativar'}</button>
                   <button class="mini delete" onclick='excluirUsuario("${u.id}","${String(u.nome||u.email).replace(/"/g,'&quot;')}")'>Excluir</button>
                 </div>
@@ -162,6 +171,58 @@ async function loadUsuarios(){
   }catch(e){
     usuariosMsg.textContent='Erro ao carregar usuários: '+e.message;
     usuariosMsg.className='message error';
+  }
+}
+
+
+function abrirEditarUsuario(u){
+  editUserId.value=u.id;
+  editUserIdentificacao.textContent=u.email||'';
+  editUserNome.value=u.nome||'';
+  editUserAtivo.checked=!!u.ativo;
+  editUserAdministrador.checked=!!u.administrador;
+  editUserCompartilhar.checked=!!u.compartilhado;
+  editUserPodeVisualizar.checked=!!u.pode_visualizar;
+  editUserPodeEditar.checked=!!u.pode_editar;
+  editUserPodeExcluir.checked=!!u.pode_excluir;
+  hide('editUserMsg');
+  modalEditarUsuario.classList.remove('hidden');
+}
+
+async function salvarEdicaoUsuario(){
+  hide('editUserMsg');
+
+  try{
+    const r=await fetch(CFG.SUPABASE_URL+'/functions/v1/finplanner-admin-users',{
+      method:'POST',
+      headers:{
+        'apikey':CFG.SUPABASE_PUBLISHABLE_KEY,
+        'Authorization':'Bearer '+tok(),
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify({
+        action:'update',
+        id:editUserId.value,
+        nome:editUserNome.value.trim(),
+        ativo:editUserAtivo.checked,
+        administrador:editUserAdministrador.checked,
+        compartilhar_financeiro:editUserCompartilhar.checked,
+        pode_visualizar:editUserPodeVisualizar.checked,
+        pode_editar:editUserPodeEditar.checked,
+        pode_excluir:editUserPodeExcluir.checked
+      })
+    });
+
+    const t=await r.text();
+    let d={};
+    try{d=JSON.parse(t)}catch{d={message:t}}
+    if(!r.ok)throw new Error(d?.error||d?.message||'Erro ao atualizar usuário');
+
+    msg('editUserMsg','Permissões atualizadas com sucesso.','success');
+    await loadUsuarios();
+    setTimeout(()=>modalEditarUsuario.classList.add('hidden'),600);
+  }catch(e){
+    msg('editUserMsg','Não foi possível atualizar: '+e.message,'error');
   }
 }
 
@@ -583,8 +644,61 @@ async function loadRecorrentes(){
 function editarLanc(x){modalEditarLanc.classList.remove('hidden');editId.value=x.id;editTitulo.textContent=x.descricao;editValor.value=x.valor_original;editVenc.value=x.data_vencimento;editLinha.value=x.linha_digitavel||'';editCodigo.value=x.codigo_barras||''}
 async function salvarEdicaoLanc(){try{await api(`/rest/v1/lancamentos?id=eq.${editId.value}`,{method:'PATCH',body:JSON.stringify({valor_original:+editValor.value,data_vencimento:editVenc.value,linha_digitavel:editLinha.value||null,codigo_barras:editCodigo.value||null,valor_confirmado:true,atualizado_em:new Date().toISOString()})});modalEditarLanc.classList.add('hidden');await atualizarTudo()}catch(e){msg('editMsg',e.message,'error')}}
 
-function pagarLanc(x){modalPagamento.classList.remove('hidden');pagId.value=x.id;pagTitulo.textContent=x.descricao;pagValor.value=x.valor_original;pagData.value=new Date().toISOString().slice(0,10)}
-async function salvarPagamento(){try{let id=pagId.value;await api('/rest/v1/pagamentos',{method:'POST',body:JSON.stringify({usuario_id:uid(),lancamento_id:id,valor_pago:+pagValor.value,juros:0,multa:0,desconto:0,data_pagamento:pagData.value})});await api(`/rest/v1/lancamentos?id=eq.${id}`,{method:'PATCH',body:JSON.stringify({status:'PAGO',atualizado_em:new Date().toISOString()})});modalPagamento.classList.add('hidden');await atualizarTudo()}catch(e){msg('pagMsg',e.message,'error')}}
+async function pagarLanc(x){
+  modalPagamento.classList.remove('hidden');
+  pagId.value=x.id;
+  pagTitulo.textContent=x.descricao;
+  pagValor.value=x.valor_original;
+  pagData.value=new Date().toISOString().slice(0,10);
+  pagContaPagamento.innerHTML='<option value="">Selecione...</option>';
+
+  try{
+    const contas=await api('/rest/v1/contas?select=id,descricao,banco&ativo=eq.true&order=descricao.asc');
+    (contas||[]).forEach(c=>{
+      const opt=document.createElement('option');
+      opt.value=c.id;
+      opt.textContent=c.banco ? `${c.descricao} - ${c.banco}` : c.descricao;
+      pagContaPagamento.appendChild(opt);
+    });
+  }catch(e){
+    msg('pagMsg','Não foi possível carregar as contas/bancos: '+e.message,'error');
+  }
+}
+async function salvarPagamento(){
+  hide('pagMsg');
+  try{
+    const id=pagId.value;
+    if(!pagContaPagamento.value){
+      msg('pagMsg','Selecione a conta/banco utilizado no pagamento.','error');
+      return;
+    }
+
+    await api('/rest/v1/pagamentos',{
+      method:'POST',
+      body:JSON.stringify({
+        usuario_id:uid(),
+        grupo_id:gid(),
+        lancamento_id:id,
+        conta_pagamento_id:pagContaPagamento.value,
+        valor_pago:+pagValor.value,
+        juros:0,
+        multa:0,
+        desconto:0,
+        data_pagamento:pagData.value
+      })
+    });
+
+    await api(`/rest/v1/lancamentos?id=eq.${id}`,{
+      method:'PATCH',
+      body:JSON.stringify({status:'PAGO',atualizado_em:new Date().toISOString()})
+    });
+
+    modalPagamento.classList.add('hidden');
+    await atualizarTudo();
+  }catch(e){
+    msg('pagMsg','Erro ao registrar pagamento: '+e.message,'error');
+  }
+}
 
 
 function abrirConta(){
@@ -908,6 +1022,9 @@ async function loadPreferenciasAlerta(){
       alertEmailDestino.value='';
       alertWhatsappNumero.value='';
       alertDias.value='5,2,0';
+      const agora=new Date();
+      alertInicio.value=toLocalDateTimeValue(agora);
+      alertFim.value='';
       return;
     }
     alertInterno.checked=!!p.alerta_interno;
@@ -916,6 +1033,8 @@ async function loadPreferenciasAlerta(){
     alertEmailDestino.value=p.email_destino||'';
     alertWhatsappNumero.value=p.whatsapp_numero||'';
     alertDias.value=(p.dias_antes||[5,2,0]).join(',');
+    alertInicio.value=p.inicio_disparos?toLocalDateTimeValue(new Date(p.inicio_disparos)):'';
+    alertFim.value=p.fim_disparos?toLocalDateTimeValue(new Date(p.fim_disparos)):'';
   }catch(e){msg('alertMsg','Erro ao carregar alertas: '+e.message,'error')}
 }
 
@@ -930,6 +1049,8 @@ async function salvarPreferenciasAlerta(){
     alerta_whatsapp:alertWhatsapp.checked,
     whatsapp_numero:alertWhatsappNumero.value.replace(/\D/g,'')||null,
     dias_antes:dias.length?dias:[5,2,0],
+    inicio_disparos:alertInicio.value?new Date(alertInicio.value).toISOString():null,
+    fim_disparos:alertFim.value?new Date(alertFim.value).toISOString():null,
     atualizado_em:new Date().toISOString()
   };
 
@@ -938,6 +1059,10 @@ async function salvarPreferenciasAlerta(){
   }
   if(payload.alerta_whatsapp&&!payload.whatsapp_numero){
     msg('alertMsg','Informe o número do WhatsApp com DDI.','error');return;
+  }
+  if(payload.inicio_disparos && payload.fim_disparos &&
+     new Date(payload.fim_disparos) <= new Date(payload.inicio_disparos)){
+    msg('alertMsg','A data/hora final deve ser posterior ao início dos disparos.','error');return;
   }
 
   try{
@@ -968,10 +1093,16 @@ async function testarAlerta(canal){
     if(!r.ok)throw new Error(d?.error||d?.message||'Falha no teste');
     msg('alertTestMsg',(canal==='email'?'E-mail':'WhatsApp')+' de teste solicitado com sucesso.','success');
   }catch(e){
-    msg('alertTestMsg','Teste não concluído: '+e.message,'error');
+    msg('alertTestMsg','Teste não concluído: '+e.message+
+      '. Verifique se a Edge Function finplanner-alertas foi publicada e se as credenciais do canal estão configuradas no Supabase.','error');
   }
 }
 
 async function copiar(enc){await navigator.clipboard.writeText(decodeURIComponent(enc));alert('Linha digitável copiada.')}
+
+function toLocalDateTimeValue(d){
+  const pad=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 function dataBR(v){if(!v)return'';let[a,m,d]=v.split('-');return `${d}/${m}/${a}`}
 window.addEventListener('load',()=>{verificarFluxoRecuperacao();if(tok()&&uid())abrirApp().catch(()=>sair())});
