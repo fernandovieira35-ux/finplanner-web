@@ -7,7 +7,7 @@
 <link rel="icon" href="assets/favicon.ico">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#111827">
-<link rel="stylesheet" href="styles.css?v=2.6.4">
+<link rel="stylesheet" href="styles.css?v=2.6.5">
 </head>
 <body>
 
@@ -19,7 +19,7 @@
     <label>Senha</label><input id="senha" type="password">
     <button id="btnEntrar" class="primary full" onclick="entrar()">Entrar</button>
     <div class="login-actions single"><button class="link-action" onclick="abrirRecuperacaoSenha()">Esqueci minha senha</button></div>
-    <div class="login-credit">Desenvolvido por <strong>Fernando Vieira</strong><br><span class="version-tag">FinPlanner Web v2.6.4</span></div>
+    <div class="login-credit">Desenvolvido por <strong>Fernando Vieira</strong><br><span class="version-tag">FinPlanner Web v2.6.5</span></div>
   </div>
 </section>
 
@@ -27,7 +27,7 @@
 <header class="topbar">
   <button class="menu-btn" onclick="toggleMenu()">☰</button>
   <div class="header-brand"><img src="assets/logo-64.png" alt="FinPlanner"><strong>FinPlanner</strong></div>
-  <span class="app-version">v2.6.4</span>
+  <span class="app-version">v2.6.5</span>
   <div id="workspaceSwitcher" class="workspace-switcher hidden">
     <span>Financeiro:</span>
     <select id="grupoFinanceiroSelect" onchange="trocarGrupoFinanceiro()"></select>
@@ -152,6 +152,31 @@
     </article>
     <article id="cardDeficit" class="metric deficit-card hidden"><span>Déficit previsto</span><strong id="deficitPrevisto">R$ 0,00</strong><small>faltará para pagar todas as contas</small></article>
   </div>
+
+  
+  <section class="panel alerts-master-card">
+    <div class="alerts-master-head">
+      <div>
+        <span class="alerts-master-kicker">Controle de custos</span>
+        <h3>Alertas externos</h3>
+        <p id="alertasExternosDescricao" class="muted">Verificando configuração...</p>
+      </div>
+      <span id="alertasExternosBadge" class="alerts-master-badge alerts-off">INATIVOS</span>
+    </div>
+
+    <div class="alerts-master-actions">
+      <div class="alerts-master-info">
+        <strong id="alertasExternosStatus">Nenhum e-mail ou WhatsApp será enviado.</strong>
+        <span>Alertas internos do FinPlanner permanecem gratuitos e podem continuar habilitados.</span>
+      </div>
+      <button id="btnAlternarAlertasExternos" class="danger-btn hidden" onclick="alternarAlertasExternos()">
+        Inativar alertas externos
+      </button>
+    </div>
+
+    <div id="alertasExternosMsg" class="message hidden"></div>
+  </section>
+
 
   <div class="grid">
     <section class="panel">
@@ -297,12 +322,12 @@
       <div class="panel-head"><h3>Testar canais</h3></div>
       <p class="muted">Os testes utilizam uma Supabase Edge Function. As credenciais dos provedores ficam somente no servidor.</p>
       <div class="test-actions">
-        <button class="secondary" onclick="testarAlerta('email')">✉ Testar e-mail</button>
-        <button class="secondary" onclick="testarAlerta('whatsapp')">💬 Testar WhatsApp</button>
+        <button id="btnTestarEmail" class="secondary" onclick="testarAlerta('email')">✉ Testar e-mail</button>
+        <button id="btnTestarWhatsapp" class="secondary" onclick="testarAlerta('whatsapp')">💬 Testar WhatsApp</button>
         <button class="secondary" onclick="verificarServicoAlertas()">⚙ Verificar serviço</button>
       </div>
       <div id="alertTestMsg" class="message hidden" style="margin-top:14px"></div>
-<div class="alert-service-note"><strong>Sobre o teste de e-mail</strong><span>Enquanto o Resend estiver em modo de teste, o envio para outros usuários pode ser bloqueado. Para produção, utilize um domínio próprio verificado.</span></div>
+<div class="alert-service-note"><strong>Sobre o teste de e-mail</strong><span>Quando os alertas externos estiverem INATIVOS, nenhum teste de e-mail ou WhatsApp será enviado. Ao ativar, o Resend e a Meta voltam a ser utilizados conforme suas configurações.</span></div>
     </section>
   </div>
 </section>
@@ -430,6 +455,7 @@
       <a href="#dln-pagamentos">7. Pagamentos</a>
       <a href="#dln-cartoes">8. Cartões</a>
       <a href="#dln-alertas">9. Alertas</a>
+      <a href="#dln-controle-alertas">31. Controle de custos dos alertas</a>
       <a href="#dln-compartilhamento">10. Financeiro compartilhado</a>
       <a href="#dln-dashboard">11. Dashboard e cálculos</a>
       <a href="#dln-web">12. Publicação Web</a>
@@ -650,6 +676,15 @@
         <p>Na tela de login, clique em <strong>Esqueci minha senha</strong> e informe o e-mail cadastrado no usuário.</p>
         <p>O Supabase Authentication envia um link de recuperação. Ao abrir o link, o FinPlanner apresenta a tela para definir uma nova senha.</p>
         <p>O login continua sendo utilizado para entrar no sistema; o e-mail é necessário para recuperação de senha e notificações.</p>
+      </section>
+
+
+      <section id="dln-controle-alertas" class="panel dln-section">
+        <h3>31. Controle de custos dos alertas</h3>
+        <p>O administrador possui um controle mestre para ativar ou inativar os alertas externos do FinPlanner.</p>
+        <p>Quando estiver <strong>INATIVO</strong>, nenhum e-mail ou WhatsApp será enviado, seja por disparo automático ou teste manual. As preferências ficam salvas para futura reativação.</p>
+        <p>Os alertas internos do próprio FinPlanner não utilizam Resend nem Meta WhatsApp e podem permanecer funcionando sem custo desses provedores.</p>
+        <p>Somente usuários administradores podem alterar esse parâmetro.</p>
       </section>
 
 <section class="panel dln-footer">
@@ -1013,6 +1048,6 @@
 <script>
 window.FINPLANNER_CONFIG={SUPABASE_URL:"https://waytzrygkhyntrwktwlo.supabase.co",SUPABASE_PUBLISHABLE_KEY:"sb_publishable_e9oRHKY_QqUD5QP68DDX2Q_u7ZbbQTO"};
 </script>
-<script src="app.js?v=2.6.4"></script>
+<script src="app.js?v=2.6.5"></script>
 </body>
 </html>

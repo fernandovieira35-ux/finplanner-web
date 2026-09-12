@@ -850,7 +850,7 @@ async function confirmarTrocaSenhaInicial(){
 
 function sair(){limparSessaoAuth();location.reload()}
 function toggleMenu(){sidebar.classList.toggle('open')}
-function showView(v,b){document.querySelectorAll('.app-section').forEach(x=>x.classList.add('hidden'));document.getElementById('view-'+v).classList.remove('hidden');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));b?.classList.add('active');sidebar.classList.remove('open');if(v==='recorrentes')loadRecorrentes();if(v==='receitas')loadReceitas();if(v==='lancamentos')loadLancamentos();if(v==='cartoes')loadCartoes();if(v==='contas')loadContas();if(v==='alertas')loadPreferenciasAlerta();if(v==='usuarios')loadUsuarios();if(v==='pagas')loadContasPagas();if(v==='seguranca')loadSegurancaFinanceiro();}
+function showView(v,b){document.querySelectorAll('.app-section').forEach(x=>x.classList.add('hidden'));document.getElementById('view-'+v).classList.remove('hidden');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));b?.classList.add('active');sidebar.classList.remove('open');if(v==='recorrentes')loadRecorrentes();if(v==='receitas')loadReceitas();if(v==='lancamentos')loadLancamentos();if(v==='cartoes')loadCartoes();if(v==='contas')loadContas();if(v==='alertas'){carregarStatusAlertasExternos();loadPreferenciasAlerta();}if(v==='usuarios')loadUsuarios();if(v==='pagas')loadContasPagas();if(v==='seguranca')loadSegurancaFinanceiro();}
 function compDate(){return competencia.value+'-01'}
 function monthRange(){let [y,m]=competencia.value.split('-').map(Number);let n=new Date(y,m,1);return [competencia.value+'-01',`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-01`]}
 async function trocarCompetencia(){
@@ -1804,6 +1804,102 @@ async function excluirLancamento(id,descricao){
 }
 
 
+
+let alertasExternosAtivos=false;
+
+async function carregarStatusAlertasExternos(){
+  try{
+    const status=await api('/rest/v1/rpc/fn_status_alertas_externos',{
+      method:'POST',
+      body:JSON.stringify({})
+    });
+
+    alertasExternosAtivos=(status===true);
+
+    const badge=document.getElementById('alertasExternosBadge');
+    const descricao=document.getElementById('alertasExternosDescricao');
+    const statusTxt=document.getElementById('alertasExternosStatus');
+    const btn=document.getElementById('btnAlternarAlertasExternos');
+    const btnEmail=document.getElementById('btnTestarEmail');
+    const btnWhatsapp=document.getElementById('btnTestarWhatsapp');
+
+    if(badge){
+      badge.className='alerts-master-badge '+(alertasExternosAtivos?'alerts-on':'alerts-off');
+      badge.textContent=alertasExternosAtivos?'ATIVOS':'INATIVOS';
+    }
+
+    if(descricao){
+      descricao.textContent=alertasExternosAtivos
+        ? 'E-mail e WhatsApp podem ser utilizados conforme as preferências cadastradas.'
+        : 'Proteção de custo ativada: e-mail e WhatsApp estão bloqueados para todo o sistema.';
+    }
+
+    if(statusTxt){
+      statusTxt.textContent=alertasExternosAtivos
+        ? 'Serviços externos liberados.'
+        : 'Nenhum e-mail ou WhatsApp será enviado.';
+    }
+
+    if(btnEmail){
+      btnEmail.disabled=!alertasExternosAtivos;
+      btnEmail.title=alertasExternosAtivos?'':'Alertas externos estão inativos.';
+    }
+    if(btnWhatsapp){
+      btnWhatsapp.disabled=!alertasExternosAtivos;
+      btnWhatsapp.title=alertasExternosAtivos?'':'Alertas externos estão inativos.';
+    }
+
+    if(btn){
+      const admin=localStorage.getItem('fp_admin')==='1';
+      btn.classList.toggle('hidden',!admin);
+      btn.textContent=alertasExternosAtivos
+        ? '🔕 Inativar alertas externos'
+        : '🔔 Ativar alertas externos';
+      btn.classList.toggle('danger-btn',alertasExternosAtivos);
+      btn.classList.toggle('primary',!alertasExternosAtivos);
+    }
+
+    return alertasExternosAtivos;
+  }catch(e){
+    msg('alertasExternosMsg','Não foi possível verificar o controle de alertas: '+e.message,'error');
+    return false;
+  }
+}
+
+async function alternarAlertasExternos(){
+  if(localStorage.getItem('fp_admin')!=='1'){
+    msg('alertasExternosMsg','Somente administradores podem alterar o controle de alertas externos.','error');
+    return;
+  }
+
+  const novoStatus=!alertasExternosAtivos;
+  const texto=novoStatus
+    ? 'ATIVAR os alertas externos?\n\nE-mails e WhatsApp poderão voltar a ser enviados e podem gerar custos nos provedores configurados.'
+    : 'INATIVAR os alertas externos?\n\nNenhum e-mail ou WhatsApp será enviado até que um administrador reative este parâmetro.';
+
+  if(!confirm(texto))return;
+
+  try{
+    await api('/rest/v1/rpc/fn_definir_alertas_externos',{
+      method:'POST',
+      body:JSON.stringify({p_ativo:novoStatus})
+    });
+
+    await carregarStatusAlertasExternos();
+
+    msg(
+      'alertasExternosMsg',
+      novoStatus
+        ? 'Alertas externos ativados. E-mail e WhatsApp voltaram a ser permitidos.'
+        : 'Alertas externos inativados. E-mail e WhatsApp estão bloqueados para evitar custos.',
+      'success'
+    );
+  }catch(e){
+    msg('alertasExternosMsg','Não foi possível alterar o controle de alertas: '+e.message,'error');
+  }
+}
+
+
 async function loadPreferenciasAlerta(){
   hide('alertMsg');
   try{
@@ -1892,6 +1988,10 @@ function traduzirErroAlerta(texto,status=0){
 
 async function testarAlerta(canal){
   hide('alertTestMsg');
+  if(!alertasExternosAtivos){
+    msg('alertTestMsg','Alertas externos estão inativos. Nenhum e-mail ou WhatsApp será enviado.','error');
+    return;
+  }
   try{
     const r=await fetch(CFG.SUPABASE_URL+'/functions/v1/finplanner-alertas',{
       method:'POST',
