@@ -403,3 +403,5 @@ button{font:inherit;cursor:pointer}.primary{border:0;background:var(--primary);c
 @media(max-width:760px){
   .installment-fields{grid-template-columns:1fr}
 }
+
+#sessionError{margin-bottom:14px}

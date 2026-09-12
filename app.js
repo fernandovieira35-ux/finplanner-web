@@ -7,14 +7,79 @@ const esc=s=>String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replac
 const msg=(id,t,c='')=>{let e=document.getElementById(id);e.textContent=t;e.className='message '+c};
 const hide=id=>document.getElementById(id).classList.add('hidden');
 
-async function api(path,opt={}){
+async function api(path,opt={},retry=true){
  const h=Object.assign({'apikey':CFG.SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},opt.headers||{});
  if(tok())h.Authorization='Bearer '+tok();
- const r=await fetch(CFG.SUPABASE_URL+path,{...opt,headers:h});
- const tx=await r.text();let d=null;try{d=tx?JSON.parse(tx):null}catch{d=tx}
+
+ let r=await fetch(CFG.SUPABASE_URL+path,{...opt,headers:h});
+
+ if(r.status===401 && retry && refreshTok()){
+   const renovou=await renovarSessao();
+   if(renovou) return api(path,opt,false);
+ }
+
+ const tx=await r.text();
+ let d=null;
+ try{d=tx?JSON.parse(tx):null}catch{d=tx}
  if(!r.ok)throw new Error(d?.message||d?.msg||d?.error_description||d?.error||'Erro Supabase');
  return d;
 }
+
+
+const refreshTok=()=>localStorage.getItem('fp_refresh_token')||'';
+
+function salvarSessaoAuth(d){
+  if(!d?.access_token)return;
+  localStorage.setItem('fp_token',d.access_token);
+  if(d.refresh_token) localStorage.setItem('fp_refresh_token',d.refresh_token);
+  if(d.user?.id) localStorage.setItem('fp_uid',d.user.id);
+  if(d.expires_at) localStorage.setItem('fp_expires_at',String(d.expires_at));
+}
+
+function limparSessaoAuth(){
+  ['fp_token','fp_refresh_token','fp_uid','fp_expires_at','fp_admin','fp_grupo_id','fp_grupo_editar','fp_grupo_excluir']
+    .forEach(k=>localStorage.removeItem(k));
+}
+
+async function renovarSessao(){
+  const rt=refreshTok();
+  if(!rt) return false;
+  try{
+    const r=await fetch(CFG.SUPABASE_URL+'/auth/v1/token?grant_type=refresh_token',{
+      method:'POST',
+      headers:{
+        'apikey':CFG.SUPABASE_PUBLISHABLE_KEY,
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify({refresh_token:rt})
+    });
+    if(!r.ok)return false;
+    const d=await r.json();
+    salvarSessaoAuth(d);
+    return true;
+  }catch{
+    return false;
+  }
+}
+
+async function garantirSessao(){
+  if(!tok() || !uid()) return false;
+
+  // Valida o token atual.
+  try{
+    const r=await fetch(CFG.SUPABASE_URL+'/auth/v1/user',{
+      headers:{
+        'apikey':CFG.SUPABASE_PUBLISHABLE_KEY,
+        'Authorization':'Bearer '+tok()
+      }
+    });
+    if(r.ok)return true;
+  }catch{}
+
+  // Token expirado: tenta renovação.
+  return await renovarSessao();
+}
+
 
 async function entrar(){
  hide('loginMessage');
@@ -37,8 +102,7 @@ async function entrar(){
      body:JSON.stringify({email:em,password:pw})
    });
 
-   localStorage.setItem('fp_token',d.access_token);
-   localStorage.setItem('fp_uid',d.user.id);
+   salvarSessaoAuth(d);
    await abrirApp();
  }catch(e){
    msg('loginMessage',e.message||'Login ou senha inválidos.','error');
@@ -490,9 +554,44 @@ async function trocarGrupoFinanceiro(){
 const gid=()=>localStorage.getItem('fp_grupo_id')||'';
 
 async function abrirApp(){
- loginView.classList.add('hidden');appView.classList.remove('hidden');
- let p=await api('/rest/v1/perfis?select=nome,email,administrador,ativo,exigir_troca_senha,pode_visualizar_outros_financeiros&limit=1'); if(p?.length){
-    usuarioNome.textContent=p[0].nome||p[0].email;
+  try{
+    let p;
+
+    try{
+      p=await api(
+        '/rest/v1/perfis?select=nome,email,administrador,ativo,exigir_troca_senha,pode_visualizar_outros_financeiros&id=eq.'+
+        encodeURIComponent(uid())+
+        '&limit=1'
+      );
+    }catch(e){
+      const erro=String(e?.message||e).toLowerCase();
+
+      // Compatibilidade se os campos da versão 2.4 ainda não estiverem no banco.
+      if(
+        erro.includes('exigir_troca_senha') ||
+        erro.includes('pode_visualizar_outros_financeiros') ||
+        erro.includes('column')
+      ){
+        p=await api(
+          '/rest/v1/perfis?select=nome,email,administrador,ativo&id=eq.'+
+          encodeURIComponent(uid())+
+          '&limit=1'
+        );
+      }else{
+        throw e;
+      }
+    }
+
+    if(!p?.length){
+      throw new Error('Perfil do usuário não encontrado ou sem permissão de leitura.');
+    }
+
+    if(p[0].ativo===false){
+      throw new Error('Usuário inativo.');
+    }
+
+    usuarioNome.textContent=p[0].nome||p[0].email||'Usuário';
+
     if(p[0].administrador===true){
       navUsuarios.classList.remove('hidden');
       if(document.getElementById('adminFinanceTools')) adminFinanceTools.classList.remove('hidden');
@@ -502,23 +601,47 @@ async function abrirApp(){
       if(document.getElementById('adminFinanceTools')) adminFinanceTools.classList.add('hidden');
       localStorage.setItem('fp_admin','0');
     }
+
+    // Só troca para o aplicativo depois que o perfil foi validado.
+    loginView.classList.add('hidden');
+    appView.classList.remove('hidden');
+
+    if(p[0].exigir_troca_senha===true && document.getElementById('modalTrocaSenhaInicial')){
+      appView.classList.add('password-change-pending');
+      novaSenhaInicial.value='';
+      novaSenhaInicial2.value='';
+      hide('trocaSenhaInicialMsg');
+      modalTrocaSenhaInicial.classList.remove('hidden');
+      return;
+    }
+
+    appView.classList.remove('password-change-pending');
+
+    const now=new Date();
+    competencia.value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    if(document.getElementById('competenciaPagas')){
+      competenciaPagas.value=competencia.value;
+    }
+
+    await carregarGruposFinanceiros();
+
+    if(!gid()){
+      throw new Error('Nenhum financeiro está associado ao seu usuário.');
+    }
+
+    hide('sessionError');
+    await atualizarTudo();
+  }catch(e){
+    console.error('Falha ao abrir FinPlanner:',e);
+
+    // Não apaga sessão nem permissões. Mostra a falha para correção.
+    if(document.getElementById('sessionError')){
+      sessionError.textContent='Não foi possível carregar o perfil financeiro: '+(e?.message||String(e));
+      sessionError.className='message error';
+    }
+
+    throw e;
   }
-
- if(p?.[0]?.exigir_troca_senha===true){
-   appView.classList.add('password-change-pending');
-   novaSenhaInicial.value='';
-   novaSenhaInicial2.value='';
-   hide('trocaSenhaInicialMsg');
-   modalTrocaSenhaInicial.classList.remove('hidden');
-   return;
- }
-
- appView.classList.remove('password-change-pending');
- let now=new Date();
- competencia.value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
- if(document.getElementById('competenciaPagas')) competenciaPagas.value=competencia.value;
- await carregarGruposFinanceiros();
- await atualizarTudo();
 }
 
 async function confirmarTrocaSenhaInicial(){
@@ -555,7 +678,7 @@ async function confirmarTrocaSenhaInicial(){
   }
 }
 
-function sair(){localStorage.clear();location.reload()}
+function sair(){limparSessaoAuth();location.reload()}
 function toggleMenu(){sidebar.classList.toggle('open')}
 function showView(v,b){document.querySelectorAll('.app-section').forEach(x=>x.classList.add('hidden'));document.getElementById('view-'+v).classList.remove('hidden');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));b?.classList.add('active');sidebar.classList.remove('open');if(v==='recorrentes')loadRecorrentes();if(v==='receitas')loadReceitas();if(v==='lancamentos')loadLancamentos();if(v==='cartoes')loadCartoes();if(v==='contas')loadContas();if(v==='alertas')loadPreferenciasAlerta();if(v==='usuarios')loadUsuarios();if(v==='pagas')loadContasPagas();}
 function compDate(){return competencia.value+'-01'}
@@ -1650,4 +1773,25 @@ function toLocalDateTimeValue(d){
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 function dataBR(v){if(!v)return'';let[a,m,d]=v.split('-');return `${d}/${m}/${a}`}
-window.addEventListener('load',()=>{verificarFluxoRecuperacao();if(tok()&&uid())abrirApp().catch(()=>sair())});
+window.addEventListener('load',async()=>{
+  verificarFluxoRecuperacao();
+
+  if(!tok()||!uid())return;
+
+  const ok=await garantirSessao();
+  if(!ok){
+    limparSessaoAuth();
+    return;
+  }
+
+  abrirApp().catch(e=>{
+    console.error('A sessão foi mantida para diagnóstico:',e);
+    // Exibe o app/erro sem apagar o token. O usuário pode sair manualmente.
+    loginView.classList.add('hidden');
+    appView.classList.remove('hidden');
+    if(document.getElementById('sessionError')){
+      sessionError.textContent='Erro ao carregar o FinPlanner: '+(e.message||e);
+      sessionError.className='message error';
+    }
+  });
+});
