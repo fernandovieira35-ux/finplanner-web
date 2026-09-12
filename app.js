@@ -1827,47 +1827,39 @@ async function salvarPreferenciasAlerta(){
   }catch(e){msg('alertMsg','Erro ao salvar alertas: '+e.message,'error')}
 }
 
+
+function traduzirErroAlerta(texto,status=0){
+  const raw=String(texto||'');
+  const low=raw.toLowerCase();
+  if(status===403 && (low.includes('testing emails') || low.includes('own email address'))){
+    return 'O serviço de e-mail está em modo de teste. O Resend permite enviar somente para o e-mail proprietário da conta. Para enviar alertas a outros usuários, configure um domínio próprio verificado no Resend e atualize o remetente no Supabase.';
+  }
+  if(low.includes('domain') && (low.includes('verify')||low.includes('verified'))){
+    return 'O domínio utilizado para envio ainda não está verificado no Resend. Verifique o domínio e o remetente configurado no Supabase.';
+  }
+  if(status===401 || low.includes('invalid api key') || low.includes('unauthorized')){
+    return 'Não foi possível autenticar no serviço de e-mail. Verifique a RESEND_API_KEY nos Secrets do Supabase.';
+  }
+  if(low.includes('failed to fetch')){
+    return 'Não foi possível acessar o serviço de alertas. Verifique se a função finplanner-alertas está publicada e se CORS/OPTIONS está configurado.';
+  }
+  if(status>=500) return 'O serviço de alertas está temporariamente indisponível. Tente novamente em alguns minutos.';
+  return raw || 'Não foi possível concluir o teste do alerta.';
+}
+
 async function testarAlerta(canal){
   hide('alertTestMsg');
-
   try{
-    await salvarPreferenciasAlerta();
-
-    const endpoint=CFG.SUPABASE_URL+'/functions/v1/finplanner-alertas';
-
-    const r=await fetch(endpoint,{
+    const r=await fetch(CFG.SUPABASE_URL+'/functions/v1/finplanner-alertas',{
       method:'POST',
-      mode:'cors',
-      headers:{
-        'apikey':CFG.SUPABASE_PUBLISHABLE_KEY,
-        'Authorization':'Bearer '+tok(),
-        'Content-Type':'application/json'
-      },
-      body:JSON.stringify({mode:'test',channel:canal})
+      headers:{'apikey':CFG.SUPABASE_PUBLISHABLE_KEY,'Authorization':'Bearer '+tok(),'Content-Type':'application/json'},
+      body:JSON.stringify({mode:'test',channel:canal,email:alertEmailDestino.value.trim(),whatsapp:alertWhatsappNumero.value.trim()})
     });
-
-    const t=await r.text();
-    let d={};
-    try{d=t?JSON.parse(t):{}}catch{d={message:t}}
-
-    if(!r.ok){
-      throw new Error(d?.error||d?.message||`HTTP ${r.status}`);
-    }
-
-    msg(
-      'alertTestMsg',
-      (canal==='email'?'E-mail':'WhatsApp')+
-      ' de teste processado pela Edge Function com sucesso.',
-      'success'
-    );
+    const tx=await r.text(); let d={}; try{d=tx?JSON.parse(tx):{}}catch{d={message:tx}}
+    if(!r.ok) throw Object.assign(new Error(traduzirErroAlerta(d?.details||d?.error||d?.message||tx,r.status)),{friendly:true});
+    msg('alertTestMsg',`${canal==='email'?'E-mail':'WhatsApp'} de teste processado com sucesso.`,'success');
   }catch(e){
-    const detalhe=e?.message||String(e);
-    msg(
-      'alertTestMsg',
-      'Teste não concluído: '+detalhe+
-      '. Confirme se a função finplanner-alertas está DEPLOYED no Supabase. Se a mensagem continuar como Failed to fetch, verifique CORS/OPTIONS da função.',
-      'error'
-    );
+    msg('alertTestMsg',e?.friendly?e.message:traduzirErroAlerta(e?.message||String(e)),'error');
   }
 }
 

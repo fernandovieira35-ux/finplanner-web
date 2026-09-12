@@ -427,3 +427,5 @@ button{font:inherit;cursor:pointer}.primary{border:0;background:var(--primary);c
   .security-status-head{flex-direction:column}
   .security-principles{grid-template-columns:1fr}
 }
+
+.alert-service-note{margin-top:12px;padding:11px 13px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;font-size:12px;line-height:1.45}.alert-service-note strong,.alert-service-note span{display:block}.alert-service-note span{margin-top:4px;color:var(--muted)}
