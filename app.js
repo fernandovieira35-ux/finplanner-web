@@ -577,7 +577,14 @@ async function enviarRecuperacaoSenha(){
     return;
   }
 
-  if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(em)){
+  const campoEmail=document.getElementById('recoverEmail');
+  if(campoEmail){
+    campoEmail.value=em;
+    if(!campoEmail.checkValidity()){
+      msg('recoverMsg','Informe um e-mail válido.','error');
+      return;
+    }
+  }else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){
     msg('recoverMsg','Informe um e-mail válido.','error');
     return;
   }
