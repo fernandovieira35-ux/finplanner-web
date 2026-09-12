@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FinPlanner Web 1.9</title>
+<title>FinPlanner Web 2.3</title>
 <link rel="icon" href="assets/favicon.ico">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#111827">
-<link rel="stylesheet" href="styles.css?v=1.9">
+<link rel="stylesheet" href="styles.css?v=2.3">
 </head>
 <body>
 
@@ -15,11 +15,11 @@
   <div class="login-card">
     <div class="brand"><img class="brand-logo" src="assets/logo-512.png" alt="FinPlanner"><div><h1>FinPlanner</h1><p>Planejamento financeiro mensal</p></div></div>
     <div id="loginMessage" class="message hidden"></div>
-    <label>E-mail</label><input id="email" type="email">
+    <label>Login</label><input id="loginUsuario" type="text" autocomplete="username" placeholder="Informe seu login">
     <label>Senha</label><input id="senha" type="password">
     <button id="btnEntrar" class="primary full" onclick="entrar()">Entrar</button>
     <div class="login-actions single"><button class="link-action" onclick="abrirRecuperacaoSenha()">Esqueci minha senha</button></div>
-    <div class="login-credit">Desenvolvido por <strong>Fernando Vieira</strong><br><span class="version-tag">FinPlanner Web v1.9</span></div>
+    <div class="login-credit">Desenvolvido por <strong>Fernando Vieira</strong><br><span class="version-tag">FinPlanner Web v2.3</span></div>
   </div>
 </section>
 
@@ -27,7 +27,12 @@
 <header class="topbar">
   <button class="menu-btn" onclick="toggleMenu()">☰</button>
   <div class="header-brand"><img src="assets/logo-64.png" alt="FinPlanner"><strong>FinPlanner</strong></div>
-  <span class="app-version">v1.9</span><div class="user-area"><span>🔔</span><span id="usuarioNome">Usuário</span><button onclick="sair()" class="secondary">Sair</button></div>
+  <span class="app-version">v2.3</span>
+  <div id="workspaceSwitcher" class="workspace-switcher hidden">
+    <span>Financeiro:</span>
+    <select id="grupoFinanceiroSelect" onchange="trocarGrupoFinanceiro()"></select>
+  </div>
+  <div class="user-area"><span>🔔</span><span id="usuarioNome">Usuário</span><button onclick="sair()" class="secondary">Sair</button></div>
 </header>
 
 <div class="shell">
@@ -51,7 +56,7 @@
     <div><h2 id="periodoTitulo">Dashboard</h2><p>Resumo financeiro da competência.</p></div>
     <div class="head-actions">
       <input id="competencia" type="month" onchange="trocarCompetencia()">
-      <button class="primary" onclick="iniciarNovoCiclo()">↻ Iniciar novo ciclo</button>
+      <button class="primary" onclick="iniciarNovoCiclo()">↻ Atualizar / carregar mês</button>
     </div>
   </div>
   <div id="dashboardMessage" class="message hidden"></div>
@@ -61,18 +66,88 @@
       <strong>Ciclo mensal</strong>
       <p id="statusCiclo" class="muted">Verificando a competência selecionada...</p>
     </div>
-    <button id="btnProximoCiclo" class="secondary" onclick="iniciarProximoCiclo()">Iniciar próximo mês</button>
+    <button id="btnProximoCiclo" class="secondary" onclick="iniciarProximoCiclo()">Carregar próximo mês</button>
+  </section>
+
+  <section id="painelRiscoMensal" class="panel risk-panel">
+    <div class="risk-header">
+      <div>
+        <span class="risk-kicker">Análise financeira do mês</span>
+        <h3 id="riscoTitulo">Analisando...</h3>
+        <p id="riscoResumo" class="muted">O FinPlanner compara as entradas previstas com as despesas do mês.</p>
+      </div>
+      <div id="riscoBadge" class="risk-badge risk-neutral">Sem dados</div>
+    </div>
+
+    <div class="risk-grid">
+      <div class="risk-metric">
+        <span>Comprometimento da renda</span>
+        <strong id="riscoComprometimento">0%</strong>
+        <small>Despesas previstas ÷ rendas previstas</small>
+      </div>
+      <div class="risk-metric">
+        <span>Sobra projetada</span>
+        <strong id="riscoSobra">R$ 0,00</strong>
+        <small>Renda prevista - despesas previstas</small>
+      </div>
+      <div class="risk-metric">
+        <span>Margem livre</span>
+        <strong id="riscoMargem">0%</strong>
+        <small>Percentual da renda que permanece disponível</small>
+      </div>
+    </div>
+
+    <div id="riscoOrientacao" class="risk-guidance">
+      Cadastre as rendas e despesas do mês para receber uma orientação simples.
+    </div>
+
+    <div class="risk-scale">
+      <span><b>Bom</b> até 80% da renda comprometida</span>
+      <span><b>Atenção</b> entre 80% e 100%</span>
+      <span><b>Risco</b> acima de 100%</span>
+    </div>
+    <small class="muted">Indicador educativo de organização mensal. Não substitui orientação financeira profissional.</small>
+  </section>
+
+  <section class="panel monthly-tips-panel">
+    <div class="panel-head">
+      <h3>Orientações para a rotina mensal</h3>
+    </div>
+    <div class="monthly-tips">
+      <div><strong>1. Atualize o mês</strong><span>Carregue rendas e contas recorrentes e revise os valores variáveis.</span></div>
+      <div><strong>2. Priorize vencimentos</strong><span>Confira primeiro as contas mais próximas do vencimento para evitar juros.</span></div>
+      <div><strong>3. Observe a sobra</strong><span>Se o mês fechar positivo, reserve uma parte antes de aumentar os gastos.</span></div>
+      <div><strong>4. Compare com o mês anterior</strong><span>Procure despesas que cresceram e identifique quais podem ser ajustadas.</span></div>
+    </div>
   </section>
 
 
+
+
   <div class="cards">
-    <article class="metric"><span>Entradas previstas</span><strong id="entradasPrevistas">R$ 0,00</strong></article>
+    <article class="metric metric-help" title="Soma das rendas previstas para a competência, mesmo que ainda não tenham sido recebidas.">
+      <span>Entradas previstas <span class="help-dot">?</span></span>
+      <strong id="entradasPrevistas">R$ 0,00</strong>
+      <small>Rendas esperadas para o mês</small>
+    </article>
     <article class="metric"><span>Recebido</span><strong id="recebidoMes">R$ 0,00</strong></article>
-    <article class="metric"><span>Contas previstas</span><strong id="contasPrevistas">R$ 0,00</strong></article>
+    <article class="metric metric-help" title="Soma de todas as despesas previstas para a competência, pagas ou pendentes.">
+      <span>Contas previstas <span class="help-dot">?</span></span>
+      <strong id="contasPrevistas">R$ 0,00</strong>
+      <small>Total de despesas previstas no mês</small>
+    </article>
     <article class="metric"><span>Já pago</span><strong id="jaPago">R$ 0,00</strong></article>
     <article class="metric"><span>A pagar</span><strong id="aPagar">R$ 0,00</strong></article>
-    <article class="metric success"><span>Saldo atual</span><strong id="saldoAtual">R$ 0,00</strong></article>
-    <article class="metric warning"><span>Saldo projetado</span><strong id="saldoProjetado">R$ 0,00</strong></article>
+    <article class="metric success metric-help" title="Saldo atual = valores já recebidos menos valores já pagos no mês.">
+      <span>Saldo atual <span class="help-dot">?</span></span>
+      <strong id="saldoAtual">R$ 0,00</strong>
+      <small>Recebido até agora − contas já pagas</small>
+    </article>
+    <article class="metric warning metric-help" title="Saldo projetado = todas as rendas previstas menos todas as despesas previstas do mês.">
+      <span>Saldo projetado <span class="help-dot">?</span></span>
+      <strong id="saldoProjetado">R$ 0,00</strong>
+      <small>Como o mês deve terminar se tudo ocorrer como previsto</small>
+    </article>
     <article id="cardDeficit" class="metric deficit-card hidden"><span>Déficit previsto</span><strong id="deficitPrevisto">R$ 0,00</strong><small>faltará para pagar todas as contas</small></article>
   </div>
 
@@ -240,6 +315,10 @@
   </div>
 
   <div id="usuariosMsg" class="message hidden"></div>
+  <div class="info-box">
+    <strong>Financeiros separados</strong>
+    <p>Cada usuário possui seu próprio financeiro. Use Editar para autorizar somente pessoas específicas a acessar o seu financeiro.</p>
+  </div>
 
   <section id="adminFinanceTools" class="panel danger-zone hidden">
     <div>
@@ -419,6 +498,55 @@
         <p>Ao excluir uma renda recorrente, apenas lançamentos futuros pendentes gerados por ela são removidos. Competências passadas e valores já pagos permanecem no histórico.</p>
       </section>
 
+
+      <section id="dln-financeiros-separados" class="panel dln-section">
+        <h3>19. Financeiros separados</h3>
+        <p>Cada usuário do FinPlanner possui um espaço financeiro próprio, independente dos demais usuários.</p>
+        <p>Rendas, contas mensais, lançamentos, cartões e pagamentos são vinculados ao financeiro selecionado no topo do sistema.</p>
+      </section>
+
+      <section id="dln-compartilhamento-seletivo" class="panel dln-section">
+        <h3>20. Compartilhamento seletivo</h3>
+        <p>O proprietário pode autorizar usuários específicos a visualizar ou editar o seu financeiro.</p>
+        <p>Um usuário autorizado continua mantendo seu próprio financeiro separado e passa a visualizar um seletor para alternar entre os ambientes aos quais possui acesso.</p>
+      </section>
+
+
+      <section id="dln-risco-mensal" class="panel dln-section">
+        <h3>21. Análise de risco mensal</h3>
+        <p>O FinPlanner compara a renda prevista com as despesas previstas da competência selecionada.</p>
+        <p>O indicador usa três faixas simples: <strong>Bom</strong> quando as despesas consomem até 80% da renda; <strong>Atenção</strong> quando consomem mais de 80% e até 100%; e <strong>Risco</strong> quando as despesas superam a renda.</p>
+        <p>O objetivo é fornecer uma leitura educativa e rápida do mês, sem substituir aconselhamento financeiro profissional.</p>
+        <p>A análise utiliza principalmente as <strong>entradas previstas</strong>, as <strong>contas previstas</strong> e o <strong>saldo projetado</strong> para indicar se o orçamento mensal está confortável, apertado ou em risco.</p>
+      </section>
+
+      <section id="dln-rotina-financeira" class="panel dln-section">
+        <h3>22. Rotina financeira simples</h3>
+        <p>Uma rotina mensal eficiente começa registrando todas as receitas, revisando contas fixas e variáveis, acompanhando vencimentos, calculando o saldo e comparando o resultado com os meses anteriores.</p>
+        <p>Quando houver sobra, o sistema orienta separar parte do valor para objetivos e reserva de emergência. Quando o orçamento estiver pressionado, a orientação é rever primeiro despesas variáveis e novos compromissos.</p>
+      </section>
+
+
+      <section id="dln-saldos-dashboard" class="panel dln-section">
+        <h3>23. Entendendo os saldos do Dashboard</h3>
+
+        <p><strong>Entradas previstas:</strong> soma de todas as rendas que estão cadastradas para o mês, como salários e outras entradas, mesmo que ainda não tenham sido recebidas.</p>
+
+        <p><strong>Contas previstas:</strong> soma de todas as despesas cadastradas no mês, incluindo contas já pagas e contas que ainda estão pendentes.</p>
+
+        <p><strong>Saldo atual:</strong> mostra a situação financeira real até o momento. É calculado considerando somente o que já entrou e o que já foi pago.</p>
+
+        <div class="dln-formula">Saldo atual = Valores recebidos − Valores já pagos</div>
+
+        <p><strong>Saldo projetado:</strong> mostra uma previsão de como o mês deve terminar caso todas as rendas sejam recebidas e todas as contas cadastradas sejam pagas.</p>
+
+        <div class="dln-formula">Saldo projetado = Entradas previstas − Contas previstas</div>
+
+        <p><strong>Exemplo:</strong> se o mês possui R$ 8.000,00 de rendas previstas e R$ 6.500,00 de despesas, o saldo projetado será de R$ 1.500,00 positivo.</p>
+
+        <p>O saldo projetado pode mudar durante o mês conforme novas despesas são cadastradas, valores variáveis são atualizados ou alguma renda é alterada.</p>
+      </section>
+
 <section class="panel dln-footer">
         <strong>FinPlanner Web</strong>
         <span>Desenvolvido por Fernando Vieira</span>
@@ -456,6 +584,13 @@
 <div class="span2"><label>Descrição *</label><input id="crDescricao"></div>
 <div><label>Tipo *</label><select id="crTipo"><option value="VARIAVEL">Variável</option><option value="FIXA">Fixa</option></select></div>
 <div><label>Valor padrão</label><input id="crValor" type="number" step="0.01"></div>
+<div class="span2 fixed-next-month">
+<label class="check-row">
+  <input id="crLevarProximoMes" type="checkbox" checked>
+  Levar esta conta para o próximo mês com o mesmo valor
+</label>
+<small class="muted">Aplicável às contas fixas. Quando marcado, o próximo ciclo recebe automaticamente o valor atual.</small>
+</div>
 <div><label>Dia de vencimento *</label><input id="crDia" type="number" min="1" max="31"></div>
 <div><label>Data inicial *</label><input id="crInicio" type="date"></div>
 <div class="span2"><label>Linha digitável (opcional)</label><input id="crLinha"></div>
@@ -541,6 +676,7 @@
     </div>
     <div id="cadUserMsg" class="message hidden"></div>
     <label>Nome *</label><input id="cadNome">
+    <label>Login *</label><input id="cadLogin" type="text" maxlength="40" placeholder="Ex.: fernando"><small class="muted">Use letras, números, ponto, hífen ou underline.</small>
     <label>E-mail *</label><input id="cadEmail" type="email">
     <label>Senha *</label><input id="cadSenha" type="password" minlength="8">
     <label>Confirmar senha *</label><input id="cadSenha2" type="password" minlength="8">
@@ -550,7 +686,7 @@
     <label class="check-row"><input id="cadAtivo" type="checkbox" checked> Usuário ativo</label>
     <div class="share-box">
       <strong>Acesso ao financeiro compartilhado</strong>
-      <label class="check-row"><input id="cadCompartilharFinanceiro" type="checkbox" checked> Compartilhar meu financeiro com este usuário</label>
+      <label class="check-row"><input id="cadCompartilharFinanceiro" type="checkbox"> Permitir que este usuário acesse meu financeiro</label>
       <label class="check-row"><input id="cadPodeVisualizar" type="checkbox" checked> Pode visualizar movimentações</label>
       <label class="check-row"><input id="cadPodeEditar" type="checkbox" checked> Pode incluir e alterar movimentações</label>
       <label class="check-row"><input id="cadPodeExcluir" type="checkbox"> Pode excluir movimentações</label>
@@ -580,6 +716,9 @@
     <label>Nome</label>
     <input id="editUserNome">
 
+    <label>Login</label>
+    <input id="editUserLogin" maxlength="40">
+
     <label class="check-row">
       <input id="editUserAtivo" type="checkbox">
       Usuário ativo
@@ -595,7 +734,7 @@
 
       <label class="check-row">
         <input id="editUserCompartilhar" type="checkbox">
-        Compartilhar meu financeiro com este usuário
+        Permitir que este usuário acesse meu financeiro
       </label>
 
       <label class="check-row">
@@ -685,6 +824,6 @@
 <script>
 window.FINPLANNER_CONFIG={SUPABASE_URL:"https://waytzrygkhyntrwktwlo.supabase.co",SUPABASE_PUBLISHABLE_KEY:"sb_publishable_e9oRHKY_QqUD5QP68DDX2Q_u7ZbbQTO"};
 </script>
-<script src="app.js?v=1.9"></script>
+<script src="app.js?v=2.3"></script>
 </body>
 </html>

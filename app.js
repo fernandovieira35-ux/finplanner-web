@@ -17,13 +17,34 @@ async function api(path,opt={}){
 }
 
 async function entrar(){
- hide('loginMessage');let em=email.value.trim(),pw=senha.value;if(!em||!pw){msg('loginMessage','Informe e-mail e senha.','error');return}
+ hide('loginMessage');
+ const login=(document.getElementById('loginUsuario')?.value||'').trim().toLowerCase();
+ const pw=senha.value;
+ if(!login||!pw){
+   msg('loginMessage','Informe login e senha.','error');
+   return;
+ }
  btnEntrar.disabled=true;
  try{
-  const d=await api('/auth/v1/token?grant_type=password',{method:'POST',body:JSON.stringify({email:em,password:pw})});
-  localStorage.setItem('fp_token',d.access_token);localStorage.setItem('fp_uid',d.user.id);
-  await abrirApp();
- }catch(e){msg('loginMessage',e.message,'error')}finally{btnEntrar.disabled=false}
+   const em=await api('/rest/v1/rpc/fn_resolver_login',{
+     method:'POST',
+     body:JSON.stringify({p_login:login})
+   });
+   if(!em) throw new Error('Login ou senha inválidos.');
+
+   const d=await api('/auth/v1/token?grant_type=password',{
+     method:'POST',
+     body:JSON.stringify({email:em,password:pw})
+   });
+
+   localStorage.setItem('fp_token',d.access_token);
+   localStorage.setItem('fp_uid',d.user.id);
+   await abrirApp();
+ }catch(e){
+   msg('loginMessage',e.message||'Login ou senha inválidos.','error');
+ }finally{
+   btnEntrar.disabled=false;
+ }
 }
 
 
@@ -35,12 +56,13 @@ function abrirCadastroUsuario(){
   }
   cadUserTitulo.textContent='Novo usuário';
   cadNome.value='';
+  cadLogin.value='';
   cadEmail.value='';
   cadSenha.value='';
   cadSenha2.value='';
   cadAdministrador.checked=false;
   cadAtivo.checked=true;
-  cadCompartilharFinanceiro.checked=true;
+  cadCompartilharFinanceiro.checked=false;
   cadPodeVisualizar.checked=true;
   cadPodeEditar.checked=true;
   cadPodeExcluir.checked=false;
@@ -57,12 +79,13 @@ async function criarUsuario(){
   }
 
   const nome=cadNome.value.trim();
+  const login=cadLogin.value.trim().toLowerCase();
   const em=cadEmail.value.trim();
   const pw=cadSenha.value;
   const pw2=cadSenha2.value;
 
-  if(!nome||!em||!pw||!pw2){
-    msg('cadUserMsg','Preencha nome, e-mail e senha.','error');return;
+  if(!nome||!login||!em||!pw||!pw2){
+    msg('cadUserMsg','Preencha nome, login, e-mail e senha.','error');return;
   }
   if(pw.length<8){
     msg('cadUserMsg','A senha deve possuir pelo menos 8 caracteres.','error');return;
@@ -82,6 +105,7 @@ async function criarUsuario(){
       body:JSON.stringify({
         action:'create',
         nome,
+        login,
         email:em,
         password:pw,
         administrador:cadAdministrador.checked,
@@ -195,6 +219,7 @@ async function loadUsuarios(){
         <thead>
           <tr>
             <th>Nome</th>
+            <th>Login</th>
             <th>E-mail</th>
             <th>Administrador</th>
             <th>Ativo</th>
@@ -206,6 +231,7 @@ async function loadUsuarios(){
           ${users.map(u=>`
             <tr>
               <td>${esc(u.nome||'')}</td>
+              <td>${esc(u.login||'')}</td>
               <td>${esc(u.email||'')}</td>
               <td>${u.administrador?'Sim':'Não'}</td>
               <td>${u.ativo?'Sim':'Não'}</td>
@@ -237,6 +263,7 @@ function abrirEditarUsuario(u){
   editUserId.value=u.id;
   editUserIdentificacao.textContent=u.email||'';
   editUserNome.value=u.nome||'';
+  editUserLogin.value=u.login||'';
   editUserAtivo.checked=!!u.ativo;
   editUserAdministrador.checked=!!u.administrador;
   editUserCompartilhar.checked=!!u.compartilhado;
@@ -262,6 +289,7 @@ async function salvarEdicaoUsuario(){
         action:'update',
         id:editUserId.value,
         nome:editUserNome.value.trim(),
+        login:editUserLogin.value.trim().toLowerCase(),
         ativo:editUserAtivo.checked,
         administrador:editUserAdministrador.checked,
         compartilhar_financeiro:editUserCompartilhar.checked,
@@ -379,16 +407,56 @@ async function salvarNovaSenha(){
   }catch(e){msg('newPasswordMsg',e.message,'error')}
 }
 
-async function carregarGrupoAtual(){
+async function carregarGruposFinanceiros(){
   try{
-    const d=await api('/rest/v1/grupo_membros?select=grupo_id,pode_editar,pode_excluir&usuario_id=eq.'+uid()+'&limit=1');
-    if(d?.length){
-      localStorage.setItem('fp_grupo_id',d[0].grupo_id);
-      localStorage.setItem('fp_grupo_editar',d[0].pode_editar?'1':'0');
-      localStorage.setItem('fp_grupo_excluir',d[0].pode_excluir?'1':'0');
+    const grupos=await api('/rest/v1/rpc/fn_meus_grupos_financeiros',{
+      method:'POST',
+      body:JSON.stringify({})
+    });
+
+    const lista=Array.isArray(grupos)?grupos:[];
+    if(!lista.length){
+      localStorage.removeItem('fp_grupo_id');
+      return;
     }
-  }catch(e){console.warn('Grupo financeiro não carregado:',e)}
+
+    let atual=localStorage.getItem('fp_grupo_id');
+    if(!lista.some(g=>g.grupo_id===atual)){
+      const proprio=lista.find(g=>g.proprietario_id===uid());
+      atual=(proprio||lista[0]).grupo_id;
+      localStorage.setItem('fp_grupo_id',atual);
+    }
+
+    const sel=document.getElementById('grupoFinanceiroSelect');
+    if(sel){
+      sel.innerHTML=lista.map(g=>`
+        <option value="${g.grupo_id}" ${g.grupo_id===atual?'selected':''}>
+          ${g.eh_proprietario?'Meu financeiro':'Financeiro de '+esc(g.proprietario_nome||g.grupo_nome)}
+        </option>
+      `).join('');
+
+      const sw=document.getElementById('workspaceSwitcher');
+      if(sw) sw.classList.toggle('hidden',lista.length<=1);
+    }
+
+    const permissao=lista.find(g=>g.grupo_id===atual);
+    localStorage.setItem('fp_grupo_editar',permissao?.pode_editar?'1':'0');
+    localStorage.setItem('fp_grupo_excluir',permissao?.pode_excluir?'1':'0');
+  }catch(e){
+    console.warn('Não foi possível carregar os financeiros disponíveis:',e);
+  }
 }
+
+async function trocarGrupoFinanceiro(){
+  const sel=document.getElementById('grupoFinanceiroSelect');
+  if(!sel?.value)return;
+  localStorage.setItem('fp_grupo_id',sel.value);
+  competencia.value=new Date().toISOString().slice(0,7);
+  if(document.getElementById('competenciaPagas')) competenciaPagas.value=competencia.value;
+  await carregarGruposFinanceiros();
+  await atualizarTudo();
+}
+
 const gid=()=>localStorage.getItem('fp_grupo_id')||'';
 
 async function abrirApp(){
@@ -408,7 +476,7 @@ async function abrirApp(){
  let now=new Date();
  competencia.value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
  if(document.getElementById('competenciaPagas')) competenciaPagas.value=competencia.value;
- await carregarGrupoAtual();
+ await carregarGruposFinanceiros();
  await atualizarTudo();
 }
 function sair(){localStorage.clear();location.reload()}
@@ -420,7 +488,7 @@ async function trocarCompetencia(){
  if(document.getElementById('competenciaPagas')) competenciaPagas.value=competencia.value;
  await atualizarTudo();
 }
-async function atualizarTudo(){await Promise.all([loadDashboard(),loadLancamentos(),loadRecorrentes(),loadReceitas(),loadCartoes(),loadContas(),loadCompras(),verificarCicloMensal()])}
+async function atualizarTudo(){await Promise.all([loadDashboard(),loadLancamentos(),loadRecorrentes(),loadReceitas(),loadCartoes(),loadContas(),loadCompras(),verificarCicloMensal(),carregarAnaliseRiscoMensal()])}
 
 async function gerarCompetencia(){
  return iniciarNovoCiclo();
@@ -436,7 +504,7 @@ async function verificarCicloMensal(){
  if(!competencia.value || !document.getElementById('statusCiclo'))return;
  try{
    const ini=compDate();
-   const dados=await api(`/rest/v1/lancamentos?select=id&competencia=eq.${ini}&limit=1`);
+   const dados=await api(`/rest/v1/lancamentos?select=id&grupo_id=eq.${gid()}&competencia=eq.${ini}&limit=1`);
    if(dados?.length){
      statusCiclo.textContent='Ciclo iniciado. As movimentações desta competência permanecem independentes dos outros meses.';
    }else{
@@ -444,7 +512,7 @@ async function verificarCicloMensal(){
    }
    const prox=addMonthsToCompetencia(competencia.value,1);
    const [py,pm]=prox.split('-');
-   btnProximoCiclo.textContent=`Iniciar ${new Date(Number(py),Number(pm)-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}`;
+   btnProximoCiclo.textContent=`Carregar ${new Date(Number(py),Number(pm)-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}`;
  }catch(e){
    statusCiclo.textContent='Não foi possível verificar o ciclo: '+e.message;
  }
@@ -457,17 +525,17 @@ async function iniciarNovoCiclo(compAlvo=null){
  try{
    const [y,m]=alvo.split('-').map(Number);
    const rotulo=new Date(y,m-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
-   const confirmar=confirm(`Iniciar o ciclo de ${rotulo}?\n\nSerão carregadas as rendas e contas recorrentes ativas. Lançamentos já existentes não serão duplicados.`);
+   const confirmar=confirm(`Carregar o ciclo de ${rotulo}?\n\nSerão carregadas as rendas e contas recorrentes ativas. Lançamentos já existentes não serão duplicados.`);
    if(!confirmar)return;
 
    await api('/rest/v1/rpc/fn_iniciar_ciclo_mensal',{
      method:'POST',
-     body:JSON.stringify({p_competencia:`${alvo}-01`})
+     body:JSON.stringify({p_competencia:`${alvo}-01`,p_grupo_id:gid()})
    });
 
    competencia.value=alvo;
    if(document.getElementById('competenciaPagas')) competenciaPagas.value=alvo;
-   msg('dashboardMessage',`Ciclo de ${rotulo} iniciado/atualizado com sucesso.`,'success');
+   msg('dashboardMessage',`Informações de ${rotulo} carregadas/atualizadas com sucesso.`,'success');
    await atualizarTudo();
  }catch(e){
    msg('dashboardMessage','Erro ao iniciar ciclo mensal: '+e.message,'error');
@@ -479,11 +547,86 @@ async function iniciarProximoCiclo(){
  await iniciarNovoCiclo(prox);
 }
 
+
+function atualizarAnaliseRisco(totalRendas, totalDespesas){
+  const panel=document.getElementById('painelRiscoMensal');
+  if(!panel)return;
+
+  const renda=Number(totalRendas||0);
+  const despesas=Number(totalDespesas||0);
+
+  const badge=document.getElementById('riscoBadge');
+  const titulo=document.getElementById('riscoTitulo');
+  const resumo=document.getElementById('riscoResumo');
+  const comprometimentoEl=document.getElementById('riscoComprometimento');
+  const sobraEl=document.getElementById('riscoSobra');
+  const margemEl=document.getElementById('riscoMargem');
+  const orientacao=document.getElementById('riscoOrientacao');
+
+  badge.className='risk-badge';
+
+  if(renda<=0){
+    badge.classList.add('risk-neutral');
+    badge.textContent='Sem dados';
+    titulo.textContent='Informe suas rendas';
+    resumo.textContent='Ainda não há renda prevista suficiente para calcular o risco do mês.';
+    comprometimentoEl.textContent='—';
+    sobraEl.textContent=money(-despesas);
+    margemEl.textContent='—';
+    orientacao.textContent='Cadastre o salário e outras entradas previstas. A análise será atualizada automaticamente.';
+    return;
+  }
+
+  const comprometimento=(despesas/renda)*100;
+  const sobra=renda-despesas;
+  const margem=(sobra/renda)*100;
+
+  comprometimentoEl.textContent=`${comprometimento.toFixed(1).replace('.',',')}%`;
+  sobraEl.textContent=money(sobra);
+  margemEl.textContent=`${margem.toFixed(1).replace('.',',')}%`;
+
+  if(comprometimento<=80){
+    badge.classList.add('risk-good');
+    badge.textContent='Bom';
+    titulo.textContent='Mês financeiramente confortável';
+    resumo.textContent='As despesas previstas estão dentro de uma faixa mais segura em relação à renda.';
+    orientacao.textContent='Mantenha o controle e considere separar parte da sobra para reserva de emergência, metas ou redução de dívidas.';
+  }else if(comprometimento<=100){
+    badge.classList.add('risk-warning');
+    badge.textContent='Atenção';
+    titulo.textContent='Mês com pouca margem';
+    resumo.textContent='Grande parte da renda já está comprometida pelas despesas previstas.';
+    orientacao.textContent='Revise gastos variáveis, evite novos compromissos e priorize contas essenciais e próximas do vencimento.';
+  }else{
+    badge.classList.add('risk-danger');
+    badge.textContent='Risco';
+    titulo.textContent='Despesas acima da renda';
+    resumo.textContent='O total previsto de despesas supera as entradas deste mês.';
+    orientacao.textContent='Priorize despesas essenciais, adie gastos não necessários e avalie onde reduzir despesas ou complementar a renda.';
+  }
+}
+
+
+
+async function carregarAnaliseRiscoMensal(){
+  if(!tok()||!competencia.value)return;
+  try{
+    const ini=compDate();
+    const dados=await api(`/rest/v1/lancamentos?select=tipo,valor_original,status&grupo_id=eq.${gid()}&competencia=eq.${ini}&status=neq.CANCELADO`);
+    const totalRendas=(dados||[]).filter(x=>x.tipo==='R').reduce((s,x)=>s+Number(x.valor_original||0),0);
+    const totalDespesas=(dados||[]).filter(x=>x.tipo==='D').reduce((s,x)=>s+Number(x.valor_original||0),0);
+    atualizarAnaliseRisco(totalRendas,totalDespesas);
+  }catch(e){
+    console.warn('Análise de risco não disponível:',e);
+  }
+}
+
+
 async function loadDashboard(){
  let [ini,fim]=monthRange();
  periodoTitulo.textContent=new Date(ini+'T12:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'}).replace(/^./,c=>c.toUpperCase());
 
- const l=await api(`/rest/v1/lancamentos?select=*&competencia=eq.${ini}&status=neq.CANCELADO&order=data_vencimento.asc`);
+ const l=await api(`/rest/v1/lancamentos?select=*&grupo_id=eq.${gid()}&competencia=eq.${ini}&status=neq.CANCELADO&order=data_vencimento.asc`);
 
  let entPrev=0,rec=0,despPrev=0,pago=0;
 
@@ -568,7 +711,7 @@ async function loadContasPagas(){
  try{
    // Primeiro localiza as despesas pagas da competência.
    const lancs=await api(
-     `/rest/v1/lancamentos?select=id,descricao,data_vencimento,valor_original,competencia,status,tipo&competencia=eq.${ini}&tipo=eq.D&status=eq.PAGO&order=data_vencimento.asc`
+     `/rest/v1/lancamentos?select=id,descricao,data_vencimento,valor_original,competencia,status,tipo&grupo_id=eq.${gid()}&competencia=eq.${ini}&tipo=eq.D&status=eq.PAGO&order=data_vencimento.asc`
    );
 
    if(!lancs?.length){
@@ -583,7 +726,7 @@ async function loadContasPagas(){
 
    const [pags, contas] = await Promise.all([
      api(`/rest/v1/pagamentos?select=id,lancamento_id,conta_pagamento_id,valor_pago,data_pagamento,juros,multa,desconto&lancamento_id=in.${inIds}&order=data_pagamento.desc`),
-     api('/rest/v1/contas?select=id,descricao,banco')
+     api('/rest/v1/contas?select=id,descricao,banco&grupo_id=eq.${gid()}')
    ]);
 
    const pagamentoPorLanc=new Map();
@@ -639,7 +782,7 @@ async function loadContasPagas(){
 }
 
 async function loadLancamentos(){
- if(!competencia.value)return;let ini=compDate();let l=await api(`/rest/v1/lancamentos?select=*&competencia=eq.${ini}&order=data_vencimento.asc`);
+ if(!competencia.value)return;let ini=compDate();let l=await api(`/rest/v1/lancamentos?select=*&grupo_id=eq.${gid()}&competencia=eq.${ini}&order=data_vencimento.asc`);
  listaLancamentos.innerHTML=l.length?`<table class="table"><thead><tr><th>Descrição</th><th>Tipo</th><th>Venc.</th><th>Valor</th><th>Status</th><th>Linha/Código</th><th>Ações</th></tr></thead><tbody>${l.map(x=>`<tr><td>${esc(x.descricao)}</td><td>${x.tipo==='R'?'Receita':'Despesa'}</td><td>${dataBR(x.data_vencimento)}</td><td>${money(x.valor_original)}</td><td>${x.status}</td><td>${x.linha_digitavel?'Linha informada':x.codigo_barras?'Código informado':'-'}</td><td>
 ${`<button class="mini edit" onclick='editarLanc(${JSON.stringify(x)})'>Editar</button>`}
 ${x.status==='PENDENTE'
@@ -750,7 +893,7 @@ async function excluirRendaRecorrenteComFuturos(id,descricao){
 
 async function loadReceitas(){
  if(!tok())return;
- let d=await api('/rest/v1/receitas_recorrentes?select=*&order=descricao.asc');
+ let d=await api('/rest/v1/receitas_recorrentes?select=*&grupo_id=eq.${gid()}&order=descricao.asc');
  listaReceitas.innerHTML=d.length
  ? d.map(x=>`<div class="row">
    <div><strong>${esc(x.descricao)}</strong><small>Todo dia ${x.dia_recebimento}</small></div>
@@ -776,6 +919,7 @@ function abrirContaRecorrente(){
   crInicio.value=new Date().toISOString().slice(0,10);
   crLinha.value='';
   crCodigo.value='';
+  if(document.getElementById('crLevarProximoMes')) crLevarProximoMes.checked=true;
   hide('recorrenteMsg');
   modalRecorrente.classList.remove('hidden');
 }
@@ -790,6 +934,7 @@ function editarContaRecorrente(x){
   crInicio.value=x.data_inicio||new Date().toISOString().slice(0,10);
   crLinha.value=x.linha_digitavel_padrao||'';
   crCodigo.value=x.codigo_barras_padrao||'';
+  if(document.getElementById('crLevarProximoMes')) crLevarProximoMes.checked=x.levar_proximo_mes!==false;
   hide('recorrenteMsg');
   modalRecorrente.classList.remove('hidden');
 }
@@ -800,6 +945,7 @@ async function salvarContaRecorrente(){
     descricao:crDescricao.value.trim(),
     tipo_valor:crTipo.value,
     valor_padrao:crValor.value?+crValor.value:null,
+    levar_proximo_mes:document.getElementById('crLevarProximoMes')?crLevarProximoMes.checked:true,
     dia_vencimento:+crDia.value,
     data_inicio:crInicio.value,
     codigo_barras_padrao:crCodigo.value||null,
@@ -846,12 +992,12 @@ async function excluirContaRecorrente(id,descricao){
 
 async function loadRecorrentes(){
  if(!tok())return;
- let d=await api('/rest/v1/contas_recorrentes?select=*&order=descricao.asc');
+ let d=await api('/rest/v1/contas_recorrentes?select=*&grupo_id=eq.${gid()}&order=descricao.asc');
  listaRecorrentes.innerHTML=d.length?d.map(x=>`
    <div class="row">
      <div>
        <strong>${esc(x.descricao)}</strong>
-       <small>${x.tipo_valor} • vence dia ${x.dia_vencimento}</small>
+       <small>${x.tipo_valor} • vence dia ${x.dia_vencimento}${x.tipo_valor==='FIXA'?(x.levar_proximo_mes?' • renova próximo mês':' • não renova'):''}</small>
      </div>
      <div>
        <strong>${x.valor_padrao==null?'Valor variável':money(x.valor_padrao)}</strong>
@@ -876,7 +1022,7 @@ async function pagarLanc(x){
   pagContaPagamento.innerHTML='<option value="">Selecione...</option>';
 
   try{
-    const contas=await api('/rest/v1/contas?select=id,descricao,banco&ativo=eq.true&order=descricao.asc');
+    const contas=await api('/rest/v1/contas?select=id,descricao,banco&grupo_id=eq.${gid()}&ativo=eq.true&order=descricao.asc');
     (contas||[]).forEach(c=>{
       const opt=document.createElement('option');
       opt.value=c.id;
@@ -993,7 +1139,7 @@ async function excluirContaFinanceira(id,descricao){
 
 async function loadContas(){
  if(!tok())return;
- let d=await api('/rest/v1/contas?select=*&order=descricao.asc');
+ let d=await api('/rest/v1/contas?select=*&grupo_id=eq.${gid()}&order=descricao.asc');
  listaContas.innerHTML=d.length?d.map(x=>`
    <div class="row">
      <div>
@@ -1070,7 +1216,7 @@ async function excluirCartao(id,descricao){
 
 async function loadCartoes(){
  if(!tok())return;
- let d=await api('/rest/v1/cartoes?select=*&order=descricao.asc');
+ let d=await api('/rest/v1/cartoes?select=*&grupo_id=eq.${gid()}&order=descricao.asc');
  listaCartoes.innerHTML=d.length?d.map(x=>`<div class="row">
    <div><strong>${esc(x.descricao)}</strong><small>Fecha dia ${x.dia_fechamento} • vence dia ${x.dia_vencimento}</small></div>
    <div><strong>${x.limite?money(x.limite):'Sem limite informado'}</strong>
@@ -1094,7 +1240,7 @@ async function abrirCompra(){
  compraData.value=new Date().toISOString().slice(0,10);
  compraCompetencia.value=competencia.value;
  hide('compraMsg');
- let d=await api('/rest/v1/cartoes?select=id,descricao&ativo=eq.true&order=descricao.asc');
+ let d=await api('/rest/v1/cartoes?select=id,descricao&grupo_id=eq.${gid()}&ativo=eq.true&order=descricao.asc');
  compraCartao.innerHTML=d.map(x=>`<option value="${x.id}">${esc(x.descricao)}</option>`).join('');
 }
 
@@ -1103,7 +1249,7 @@ async function editarCompra(x){
  compraModalTitulo.textContent='Editar compra no cartão';
  modalCompra.classList.remove('hidden');
  hide('compraMsg');
- let d=await api('/rest/v1/cartoes?select=id,descricao&ativo=eq.true&order=descricao.asc');
+ let d=await api('/rest/v1/cartoes?select=id,descricao&grupo_id=eq.${gid()}&ativo=eq.true&order=descricao.asc');
  compraCartao.innerHTML=d.map(c=>`<option value="${c.id}" ${c.id===x.cartao_id?'selected':''}>${esc(c.descricao)}</option>`).join('');
  compraDescricao.value=x.descricao||'';
  compraValor.value=x.valor_total??'';
@@ -1143,7 +1289,8 @@ async function salvarCompra(){
    for(let i=1;i<=parcelas;i++){
     let dt=new Date(y,m-1+(i-1),1);
     arr.push({
-      usuario_id:uid(),compra_id:compraId.value,cartao_id:compraCartao.value,numero_parcela:i,
+      usuario_id:uid(),compra_id:compraId.value,
+        grupo_id:gid(),cartao_id:compraCartao.value,numero_parcela:i,
       competencia:`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-01`,
       valor:(i===parcelas?Math.round((total-baseVal*(parcelas-1))*100)/100:baseVal)
     });
@@ -1187,7 +1334,7 @@ async function excluirCompra(id,descricao){
 
 async function loadCompras(){
  if(!tok() || !document.getElementById('listaComprasCartao'))return;
- let d=await api('/rest/v1/compras_cartao?select=*&order=data_compra.desc');
+ let d=await api('/rest/v1/compras_cartao?select=*&grupo_id=eq.${gid()}&order=data_compra.desc');
  listaComprasCartao.innerHTML=d.length?d.map(x=>`<div class="row">
    <div><strong>${esc(x.descricao)}</strong><small>${dataBR(x.data_compra)} • ${x.quantidade_parcelas} parcela(s)</small></div>
    <div><strong>${money(x.valor_total)}</strong>
