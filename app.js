@@ -561,28 +561,63 @@ async function excluirUsuario(id,nome){
 }
 
 function abrirRecuperacaoSenha(){
-  recoverEmail.value=email.value.trim()||'';
+  const campo=document.getElementById('recoverEmail');
+  if(campo) campo.value='';
   hide('recoverMsg');
   modalRecuperarSenha.classList.remove('hidden');
+  setTimeout(()=>campo?.focus(),50);
 }
 
 async function enviarRecuperacaoSenha(){
   hide('recoverMsg');
-  const em=recoverEmail.value.trim();
-  if(!em){msg('recoverMsg','Informe o e-mail.','error');return;}
+  const em=(document.getElementById('recoverEmail')?.value||'').trim().toLowerCase();
+
+  if(!em){
+    msg('recoverMsg','Informe o e-mail cadastrado.','error');
+    return;
+  }
+
+  if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(em)){
+    msg('recoverMsg','Informe um e-mail válido.','error');
+    return;
+  }
+
   try{
-    await api('/auth/v1/recover',{
+    const redirectTo=location.origin+location.pathname;
+    const r=await fetch(CFG.SUPABASE_URL+'/auth/v1/recover',{
       method:'POST',
-      body:JSON.stringify({email:em,redirect_to:location.origin+location.pathname})
+      headers:{
+        'apikey':CFG.SUPABASE_PUBLISHABLE_KEY,
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify({email:em,redirect_to:redirectTo})
     });
-    msg('recoverMsg','Solicitação enviada. Verifique seu e-mail.','success');
-  }catch(e){msg('recoverMsg','Erro ao solicitar recuperação: '+e.message,'error')}
+
+    const tx=await r.text();
+    let d={};
+    try{d=tx?JSON.parse(tx):{}}catch{d={message:tx}}
+
+    if(!r.ok){
+      throw new Error(d?.msg||d?.message||d?.error_description||d?.error||'Não foi possível enviar a recuperação.');
+    }
+
+    msg('recoverMsg','Se este e-mail estiver cadastrado, enviaremos um link para redefinir a senha. Verifique também a pasta de spam.','success');
+  }catch(e){
+    msg('recoverMsg','Não foi possível solicitar a recuperação: '+(e.message||e),'error');
+  }
 }
 
 function verificarFluxoRecuperacao(){
   const hash=new URLSearchParams(location.hash.replace(/^#/,''));
-  if(hash.get('type')==='recovery' && hash.get('access_token')){
-    localStorage.setItem('fp_recovery_token',hash.get('access_token'));
+  const query=new URLSearchParams(location.search);
+
+  const type=hash.get('type')||query.get('type');
+  const accessToken=hash.get('access_token')||query.get('access_token');
+  const refreshToken=hash.get('refresh_token')||query.get('refresh_token');
+
+  if(type==='recovery' && accessToken){
+    localStorage.setItem('fp_recovery_token',accessToken);
+    if(refreshToken) localStorage.setItem('fp_recovery_refresh_token',refreshToken);
     modalNovaSenha.classList.remove('hidden');
   }
 }
@@ -609,6 +644,7 @@ async function salvarNovaSenha(){
     const t=await r.text();let d={};try{d=JSON.parse(t)}catch{}
     if(!r.ok)throw new Error(d?.message||d?.error||'Erro ao atualizar senha');
     localStorage.removeItem('fp_recovery_token');
+    localStorage.removeItem('fp_recovery_refresh_token');
     history.replaceState(null,'',location.pathname);
     msg('newPasswordMsg','Senha alterada com sucesso. Você já pode entrar.','success');
     setTimeout(()=>modalNovaSenha.classList.add('hidden'),900);
@@ -1922,5 +1958,10 @@ window.addEventListener('load',async()=>{
       sessionError.textContent='Erro ao carregar o FinPlanner: '+(e.message||e);
       sessionError.className='message error';
     }
+  });
+});
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('recoverEmail')?.addEventListener('keydown',e=>{
+    if(e.key==='Enter') enviarRecuperacaoSenha();
   });
 });

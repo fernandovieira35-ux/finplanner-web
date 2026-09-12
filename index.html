@@ -7,7 +7,7 @@
 <link rel="icon" href="assets/favicon.ico">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#111827">
-<link rel="stylesheet" href="styles.css?v=2.6.2">
+<link rel="stylesheet" href="styles.css?v=2.6.3">
 </head>
 <body>
 
@@ -19,7 +19,7 @@
     <label>Senha</label><input id="senha" type="password">
     <button id="btnEntrar" class="primary full" onclick="entrar()">Entrar</button>
     <div class="login-actions single"><button class="link-action" onclick="abrirRecuperacaoSenha()">Esqueci minha senha</button></div>
-    <div class="login-credit">Desenvolvido por <strong>Fernando Vieira</strong><br><span class="version-tag">FinPlanner Web v2.6.2</span></div>
+    <div class="login-credit">Desenvolvido por <strong>Fernando Vieira</strong><br><span class="version-tag">FinPlanner Web v2.6.3</span></div>
   </div>
 </section>
 
@@ -27,7 +27,7 @@
 <header class="topbar">
   <button class="menu-btn" onclick="toggleMenu()">☰</button>
   <div class="header-brand"><img src="assets/logo-64.png" alt="FinPlanner"><strong>FinPlanner</strong></div>
-  <span class="app-version">v2.6.2</span>
+  <span class="app-version">v2.6.3</span>
   <div id="workspaceSwitcher" class="workspace-switcher hidden">
     <span>Financeiro:</span>
     <select id="grupoFinanceiroSelect" onchange="trocarGrupoFinanceiro()"></select>
@@ -645,6 +645,13 @@
         <p>O proprietário pode revogar o acesso imediatamente. O histórico registra concessões, alterações e revogações de compartilhamento.</p>
       </section>
 
+      <section id="dln-recuperacao-senha" class="panel dln-section">
+        <h3>30. Recuperação de senha</h3>
+        <p>Na tela de login, clique em <strong>Esqueci minha senha</strong> e informe o e-mail cadastrado no usuário.</p>
+        <p>O Supabase Authentication envia um link de recuperação. Ao abrir o link, o FinPlanner apresenta a tela para definir uma nova senha.</p>
+        <p>O login continua sendo utilizado para entrar no sistema; o e-mail é necessário para recuperação de senha e notificações.</p>
+      </section>
+
 <section class="panel dln-footer">
         <strong>FinPlanner Web</strong>
         <span>Desenvolvido por Fernando Vieira</span>
@@ -975,7 +982,7 @@
 <div id="modalRecuperarSenha" class="modal hidden">
   <div class="modal-box small-modal">
     <div class="modal-head">
-      <div><h3>Recuperar senha</h3><p>Enviaremos o fluxo de recuperação para seu e-mail.</p></div>
+      <div><h3>Recuperar senha</h3><p>Informe o e-mail cadastrado no seu usuário.</p></div>
       <button class="close" onclick="modalRecuperarSenha.classList.add('hidden')">×</button>
     </div>
     <div id="recoverMsg" class="message hidden"></div>
@@ -1006,6 +1013,6 @@
 <script>
 window.FINPLANNER_CONFIG={SUPABASE_URL:"https://waytzrygkhyntrwktwlo.supabase.co",SUPABASE_PUBLISHABLE_KEY:"sb_publishable_e9oRHKY_QqUD5QP68DDX2Q_u7ZbbQTO"};
 </script>
-<script src="app.js?v=2.6.2"></script>
+<script src="app.js?v=2.6.3"></script>
 </body>
 </html>
