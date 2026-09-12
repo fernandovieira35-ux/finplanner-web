@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FinPlanner Web 2.5.3</title>
+<title>FinPlanner Web 2.6</title>
 <link rel="icon" href="assets/favicon.ico">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#111827">
-<link rel="stylesheet" href="styles.css?v=2.5.3">
+<link rel="stylesheet" href="styles.css?v=2.6">
 </head>
 <body>
 
@@ -19,7 +19,7 @@
     <label>Senha</label><input id="senha" type="password">
     <button id="btnEntrar" class="primary full" onclick="entrar()">Entrar</button>
     <div class="login-actions single"><button class="link-action" onclick="abrirRecuperacaoSenha()">Esqueci minha senha</button></div>
-    <div class="login-credit">Desenvolvido por <strong>Fernando Vieira</strong><br><span class="version-tag">FinPlanner Web v2.5.3</span></div>
+    <div class="login-credit">Desenvolvido por <strong>Fernando Vieira</strong><br><span class="version-tag">FinPlanner Web v2.6</span></div>
   </div>
 </section>
 
@@ -27,7 +27,7 @@
 <header class="topbar">
   <button class="menu-btn" onclick="toggleMenu()">☰</button>
   <div class="header-brand"><img src="assets/logo-64.png" alt="FinPlanner"><strong>FinPlanner</strong></div>
-  <span class="app-version">v2.5.3</span>
+  <span class="app-version">v2.6</span>
   <div id="workspaceSwitcher" class="workspace-switcher hidden">
     <span>Financeiro:</span>
     <select id="grupoFinanceiroSelect" onchange="trocarGrupoFinanceiro()"></select>
@@ -45,6 +45,7 @@
   <button class="nav" onclick="showView('cartoes',this)">💳 Cartões</button>
   <button class="nav" onclick="showView('contas',this)">🏦 Contas</button>
   <button class="nav" onclick="showView('alertas',this)">🔔 Alertas</button>
+  <button class="nav" onclick="showView('seguranca',this)">🔒 Segurança</button>
   <button id="navUsuarios" class="nav hidden" onclick="showView('usuarios',this)">👥 Usuários</button>
   <button class="nav" onclick="showView('dln',this)">📘 DLN / Ajuda</button>
 </aside>
@@ -350,6 +351,63 @@
 </section>
 
 
+
+<section id="view-seguranca" class="app-section hidden">
+  <div class="page-head">
+    <div>
+      <h2>Segurança e compartilhamento</h2>
+      <p>Veja exatamente quem pode acessar o seu financeiro.</p>
+    </div>
+    <button class="secondary" onclick="loadSegurancaFinanceiro()">Atualizar</button>
+  </div>
+
+  <div id="segurancaMsg" class="message hidden"></div>
+
+  <section class="panel security-status-card">
+    <div class="security-status-head">
+      <div>
+        <span class="security-kicker">Privacidade do seu financeiro</span>
+        <h3 id="segurancaStatusTitulo">Verificando...</h3>
+        <p id="segurancaStatusTexto" class="muted">Carregando autorizações.</p>
+      </div>
+      <span id="segurancaStatusBadge" class="security-badge security-private">Privado</span>
+    </div>
+
+    <div class="security-principles">
+      <div><strong>Privado por padrão</strong><span>Nenhum usuário recebe acesso automaticamente.</span></div>
+      <div><strong>Dupla autorização</strong><span>O proprietário compartilha e o usuário precisa estar habilitado para outros financeiros.</span></div>
+      <div><strong>Banco protegido</strong><span>O bloqueio é aplicado por RLS no Supabase, não apenas pela interface.</span></div>
+      <div><strong>Revogação imediata</strong><span>Ao revogar, novas consultas e alterações deixam de ser autorizadas.</span></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h3>Pessoas autorizadas</h3>
+        <p class="muted">Somente estas pessoas podem acessar seu ambiente financeiro.</p>
+      </div>
+    </div>
+    <div id="listaAcessosFinanceiros"></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h3>Histórico de acessos concedidos</h3>
+        <p class="muted">Registro das alterações de compartilhamento realizadas no seu financeiro.</p>
+      </div>
+    </div>
+    <div id="listaAuditoriaFinanceiro"></div>
+  </section>
+
+  <section class="panel security-checklist">
+    <h3>Boas práticas</h3>
+    <p>Use senhas individuais, não compartilhe seu login, mantenha somente os acessos necessários e revise esta tela periodicamente.</p>
+    <p class="muted">Para uma camada adicional de proteção, o Supabase também oferece autenticação multifator (MFA), que pode ser adicionada futuramente ao FinPlanner.</p>
+  </section>
+</section>
+
 <section id="view-dln" class="app-section hidden">
   <div class="page-head">
     <div>
@@ -572,6 +630,20 @@
         <p>Após a última parcela, a conta deixa de ser carregada automaticamente para os meses seguintes.</p>
       </section>
 
+
+      <section id="dln-seguranca" class="panel dln-section">
+        <h3>27. Segurança e privacidade</h3>
+        <p>O financeiro de cada usuário é privado por padrão. O fato de uma pessoa ser administradora do FinPlanner não concede acesso automático às movimentações financeiras de outros usuários.</p>
+        <p>O acesso a um financeiro de terceiro exige autorização explícita do proprietário e uma permissão específica para visualizar financeiros de outros usuários.</p>
+        <p>As regras são aplicadas no banco por Row Level Security (RLS). Portanto, alterar manualmente o identificador do financeiro no navegador não concede acesso a dados não autorizados.</p>
+      </section>
+
+      <section id="dln-revisao-acessos" class="panel dln-section">
+        <h3>28. Revisão de acessos</h3>
+        <p>A tela Segurança mostra quem possui acesso ao seu financeiro e quais permissões foram concedidas: visualizar, editar e excluir.</p>
+        <p>O proprietário pode revogar o acesso imediatamente. O histórico registra concessões, alterações e revogações de compartilhamento.</p>
+      </section>
+
 <section class="panel dln-footer">
         <strong>FinPlanner Web</strong>
         <span>Desenvolvido por Fernando Vieira</span>
@@ -741,7 +813,8 @@
       <small class="muted">Para visualizar outro financeiro, este parâmetro e o compartilhamento do proprietário precisam estar habilitados.</small>
     </div>
     <div class="share-box">
-      <strong>Acesso ao financeiro compartilhado</strong>
+      <strong>Acesso ao meu financeiro</strong>
+      <p class="muted security-inline-note">Marque somente para pessoas de confiança. Administrador do sistema não recebe acesso financeiro automaticamente.</p>
       <label class="check-row"><input id="cadCompartilharFinanceiro" type="checkbox"> Permitir que este usuário acesse meu financeiro</label>
       <label class="check-row"><input id="cadPodeVisualizar" type="checkbox" checked> Pode visualizar movimentações</label>
       <label class="check-row"><input id="cadPodeEditar" type="checkbox" checked> Pode incluir e alterar movimentações</label>
@@ -806,7 +879,8 @@
     </div>
 
     <div class="share-box">
-      <strong>Permissões sobre o financeiro compartilhado</strong>
+      <strong>Permissões sobre o meu financeiro</strong>
+      <p class="muted security-inline-note">O acesso é exclusivo ao seu financeiro e pode ser revogado a qualquer momento.</p>
 
       <label class="check-row">
         <input id="editUserCompartilhar" type="checkbox">
@@ -931,6 +1005,6 @@
 <script>
 window.FINPLANNER_CONFIG={SUPABASE_URL:"https://waytzrygkhyntrwktwlo.supabase.co",SUPABASE_PUBLISHABLE_KEY:"sb_publishable_e9oRHKY_QqUD5QP68DDX2Q_u7ZbbQTO"};
 </script>
-<script src="app.js?v=2.5.3"></script>
+<script src="app.js?v=2.6"></script>
 </body>
 </html>

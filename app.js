@@ -160,6 +160,15 @@ async function criarUsuario(){
     msg('cadUserMsg','As senhas não conferem.','error');return;
   }
 
+  if(cadCompartilharFinanceiro.checked){
+    const permissoes=[
+      cadPodeVisualizar.checked?'visualizar':null,
+      cadPodeEditar.checked?'editar':null,
+      cadPodeExcluir.checked?'excluir':null
+    ].filter(Boolean).join(', ');
+    if(!confirm(`Você está autorizando ${nome} a acessar o SEU financeiro.\n\nPermissões: ${permissoes||'nenhuma'}\n\nDeseja continuar?`)) return;
+  }
+
   try{
     const r=await fetch(CFG.SUPABASE_URL+'/functions/v1/finplanner-admin-users',{
       method:'POST',
@@ -253,6 +262,102 @@ async function confirmarResetFinanceiro(){
     },900);
   }catch(e){
     msg('resetFinanceiroMsg','Não foi possível excluir os dados: '+e.message,'error');
+  }
+}
+
+
+
+async function loadSegurancaFinanceiro(){
+  if(!tok())return;
+  try{
+    const [acessos,auditoria]=await Promise.all([
+      api('/rest/v1/rpc/fn_meus_acessos_financeiros',{method:'POST',body:JSON.stringify({})}),
+      api('/rest/v1/rpc/fn_minha_auditoria_acessos',{method:'POST',body:JSON.stringify({})})
+    ]);
+
+    const lista=Array.isArray(acessos)?acessos:[];
+    const badge=document.getElementById('segurancaStatusBadge');
+    const titulo=document.getElementById('segurancaStatusTitulo');
+    const texto=document.getElementById('segurancaStatusTexto');
+
+    if(lista.length===0){
+      badge.className='security-badge security-private';
+      badge.textContent='Privado';
+      titulo.textContent='Somente você possui acesso';
+      texto.textContent='Não há compartilhamentos ativos no seu financeiro.';
+    }else{
+      badge.className='security-badge security-shared';
+      badge.textContent=`Compartilhado com ${lista.length}`;
+      titulo.textContent='Seu financeiro possui compartilhamentos ativos';
+      texto.textContent='Revise abaixo quem possui acesso e quais ações cada pessoa pode realizar.';
+    }
+
+    listaAcessosFinanceiros.innerHTML=lista.length?`
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Pessoa</th>
+            <th>Login</th>
+            <th>Visualizar</th>
+            <th>Editar</th>
+            <th>Excluir</th>
+            <th>Ação</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${lista.map(x=>`
+            <tr>
+              <td>${esc(x.nome||x.email||'Usuário')}</td>
+              <td>${esc(x.login||'-')}</td>
+              <td>${x.pode_visualizar?'Sim':'Não'}</td>
+              <td>${x.pode_editar?'Sim':'Não'}</td>
+              <td>${x.pode_excluir?'Sim':'Não'}</td>
+              <td>
+                <button class="mini delete" onclick='revogarAcessoFinanceiro("${x.usuario_id}","${String(x.nome||x.email||'usuário').replace(/"/g,'&quot;')}")'>
+                  Revogar acesso
+                </button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`
+      :'<div class="security-empty"><strong>Seu financeiro está privado.</strong><span>Nenhuma outra pessoa possui acesso neste momento.</span></div>';
+
+    const logs=Array.isArray(auditoria)?auditoria:[];
+    listaAuditoriaFinanceiro.innerHTML=logs.length?`
+      <table class="table">
+        <thead><tr><th>Data</th><th>Ação</th><th>Usuário</th><th>Detalhes</th></tr></thead>
+        <tbody>
+          ${logs.map(x=>`
+            <tr>
+              <td>${new Date(x.criado_em).toLocaleString('pt-BR')}</td>
+              <td>${esc(x.acao)}</td>
+              <td>${esc(x.alvo_nome||x.alvo_email||'-')}</td>
+              <td>${esc(x.detalhes_texto||'')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`
+      :'<p class="muted">Ainda não há alterações de compartilhamento registradas.</p>';
+
+    hide('segurancaMsg');
+  }catch(e){
+    msg('segurancaMsg','Não foi possível carregar a segurança do financeiro: '+e.message,'error');
+  }
+}
+
+async function revogarAcessoFinanceiro(usuarioId,nome){
+  if(!confirm(`Revogar imediatamente o acesso de ${nome} ao seu financeiro?\n\nApós a revogação, essa pessoa não poderá consultar nem alterar novas informações do seu financeiro.`))return;
+
+  try{
+    await api('/rest/v1/rpc/fn_revogar_meu_acesso_financeiro',{
+      method:'POST',
+      body:JSON.stringify({p_usuario_id:usuarioId})
+    });
+    await loadSegurancaFinanceiro();
+    if(localStorage.getItem('fp_admin')==='1') await loadUsuarios();
+  }catch(e){
+    msg('segurancaMsg','Não foi possível revogar o acesso: '+e.message,'error');
   }
 }
 
@@ -366,6 +471,15 @@ async function salvarEdicaoUsuario(){
       msg('editUserMsg','As senhas provisórias não conferem.','error');
       return;
     }
+  }
+
+  if(editUserCompartilhar.checked){
+    const permissoes=[
+      editUserPodeVisualizar.checked?'visualizar':null,
+      editUserPodeEditar.checked?'editar':null,
+      editUserPodeExcluir.checked?'excluir':null
+    ].filter(Boolean).join(', ');
+    if(!confirm(`Você está concedendo acesso ao seu financeiro.\n\nPermissões: ${permissoes||'nenhuma'}\n\nConfirma esta autorização?`)) return;
   }
 
   try{
@@ -693,7 +807,7 @@ async function confirmarTrocaSenhaInicial(){
 
 function sair(){limparSessaoAuth();location.reload()}
 function toggleMenu(){sidebar.classList.toggle('open')}
-function showView(v,b){document.querySelectorAll('.app-section').forEach(x=>x.classList.add('hidden'));document.getElementById('view-'+v).classList.remove('hidden');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));b?.classList.add('active');sidebar.classList.remove('open');if(v==='recorrentes')loadRecorrentes();if(v==='receitas')loadReceitas();if(v==='lancamentos')loadLancamentos();if(v==='cartoes')loadCartoes();if(v==='contas')loadContas();if(v==='alertas')loadPreferenciasAlerta();if(v==='usuarios')loadUsuarios();if(v==='pagas')loadContasPagas();}
+function showView(v,b){document.querySelectorAll('.app-section').forEach(x=>x.classList.add('hidden'));document.getElementById('view-'+v).classList.remove('hidden');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));b?.classList.add('active');sidebar.classList.remove('open');if(v==='recorrentes')loadRecorrentes();if(v==='receitas')loadReceitas();if(v==='lancamentos')loadLancamentos();if(v==='cartoes')loadCartoes();if(v==='contas')loadContas();if(v==='alertas')loadPreferenciasAlerta();if(v==='usuarios')loadUsuarios();if(v==='pagas')loadContasPagas();if(v==='seguranca')loadSegurancaFinanceiro();}
 function compDate(){return competencia.value+'-01'}
 function monthRange(){let [y,m]=competencia.value.split('-').map(Number);let n=new Date(y,m,1);return [competencia.value+'-01',`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-01`]}
 async function trocarCompetencia(){

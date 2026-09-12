@@ -405,3 +405,25 @@ button{font:inherit;cursor:pointer}.primary{border:0;background:var(--primary);c
 }
 
 #sessionError{margin-bottom:14px}
+
+.security-status-card{border-left:5px solid #0f766e}
+.security-status-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+.security-kicker{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.security-badge{display:inline-flex;padding:8px 13px;border-radius:999px;font-weight:700;white-space:nowrap}
+.security-private{background:#ecfdf5;color:#166534;border:1px solid #bbf7d0}
+.security-shared{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa}
+.security-principles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:16px}
+.security-principles>div{border:1px solid var(--line);border-radius:10px;padding:12px;background:#f8fafc}
+.security-principles strong,.security-principles span{display:block}
+.security-principles span{margin-top:4px;color:var(--muted);font-size:12px;line-height:1.4}
+.security-empty{display:flex;flex-direction:column;gap:5px;padding:18px;border:1px dashed #86efac;border-radius:10px;background:#f0fdf4}
+.security-empty span{color:#475569}
+.security-inline-note{margin:5px 0 9px;line-height:1.4}
+.security-checklist{border-left:5px solid #2563eb}
+@media(max-width:900px){
+  .security-principles{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:600px){
+  .security-status-head{flex-direction:column}
+  .security-principles{grid-template-columns:1fr}
+}
