@@ -553,6 +553,12 @@ async function trocarGrupoFinanceiro(){
 
 const gid=()=>localStorage.getItem('fp_grupo_id')||'';
 
+
+function grupoFinanceiroValido(){
+  const g=gid();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(g);
+}
+
 async function abrirApp(){
   try{
     let p;
@@ -628,6 +634,13 @@ async function abrirApp(){
     if(!gid()){
       throw new Error('Nenhum financeiro está associado ao seu usuário.');
     }
+    if(!grupoFinanceiroValido()){
+      localStorage.removeItem('fp_grupo_id');
+      await carregarGruposFinanceiros();
+      if(!grupoFinanceiroValido()){
+        throw new Error('O identificador do financeiro está inválido. Saia e entre novamente após atualizar o sistema.');
+      }
+    }
 
     hide('sessionError');
     await atualizarTudo();
@@ -700,6 +713,7 @@ function addMonthsToCompetencia(comp, qtd){
 }
 
 async function verificarCicloMensal(){
+ if(!grupoFinanceiroValido()) return;
  if(!competencia.value || !document.getElementById('statusCiclo'))return;
  try{
    const ini=compDate();
@@ -808,6 +822,7 @@ function atualizarAnaliseRisco(totalRendas, totalDespesas){
 
 
 async function carregarAnaliseRiscoMensal(){
+ if(!grupoFinanceiroValido()) return;
   if(!tok()||!competencia.value)return;
   try{
     const ini=compDate();
@@ -822,6 +837,7 @@ async function carregarAnaliseRiscoMensal(){
 
 
 async function loadDashboard(){
+ if(!grupoFinanceiroValido()) return;
  let [ini,fim]=monthRange();
  periodoTitulo.textContent=new Date(ini+'T12:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'}).replace(/^./,c=>c.toUpperCase());
 
@@ -900,6 +916,7 @@ function rowLanc(x){
 
 
 async function loadContasPagas(){
+ if(!grupoFinanceiroValido()) return;
  if(!tok() || !document.getElementById('listaContasPagas'))return;
 
  const comp=(competenciaPagas?.value || competencia.value);
@@ -925,7 +942,7 @@ async function loadContasPagas(){
 
    const [pags, contas] = await Promise.all([
      api(`/rest/v1/pagamentos?select=id,lancamento_id,conta_pagamento_id,valor_pago,data_pagamento,juros,multa,desconto&lancamento_id=in.${inIds}&order=data_pagamento.desc`),
-     api('/rest/v1/contas?select=id,descricao,banco&grupo_id=eq.${gid()}')
+     api(`/rest/v1/contas?select=id,descricao,banco&grupo_id=eq.${gid()}`)
    ]);
 
    const pagamentoPorLanc=new Map();
@@ -981,6 +998,7 @@ async function loadContasPagas(){
 }
 
 async function loadLancamentos(){
+ if(!grupoFinanceiroValido()) return;
  if(!competencia.value)return;let ini=compDate();let l=await api(`/rest/v1/lancamentos?select=*&grupo_id=eq.${gid()}&competencia=eq.${ini}&order=data_vencimento.asc`);
  listaLancamentos.innerHTML=l.length?`<table class="table"><thead><tr><th>Descrição</th><th>Tipo</th><th>Venc.</th><th>Valor</th><th>Status</th><th>Linha/Código</th><th>Ações</th></tr></thead><tbody>${l.map(x=>`<tr><td>${esc(x.descricao)}</td><td>${x.tipo==='R'?'Receita':'Despesa'}</td><td>${dataBR(x.data_vencimento)}</td><td>${money(x.valor_original)}</td><td>${x.status}</td><td>${x.linha_digitavel?'Linha informada':x.codigo_barras?'Código informado':'-'}</td><td>
 ${`<button class="mini edit" onclick='editarLanc(${JSON.stringify(x)})'>Editar</button>`}
@@ -1091,8 +1109,9 @@ async function excluirRendaRecorrenteComFuturos(id,descricao){
 
 
 async function loadReceitas(){
+ if(!grupoFinanceiroValido()) return;
  if(!tok())return;
- let d=await api('/rest/v1/receitas_recorrentes?select=*&grupo_id=eq.${gid()}&order=descricao.asc');
+ let d=await api(`/rest/v1/receitas_recorrentes?select=*&grupo_id=eq.${gid()}&order=descricao.asc`);
  listaReceitas.innerHTML=d.length
  ? d.map(x=>`<div class="row">
    <div><strong>${esc(x.descricao)}</strong><small>Todo dia ${x.dia_recebimento}</small></div>
@@ -1234,8 +1253,9 @@ async function excluirContaRecorrente(id,descricao){
 }
 
 async function loadRecorrentes(){
+ if(!grupoFinanceiroValido()) return;
  if(!tok())return;
- let d=await api('/rest/v1/contas_recorrentes?select=*&grupo_id=eq.${gid()}&order=descricao.asc');
+ let d=await api(`/rest/v1/contas_recorrentes?select=*&grupo_id=eq.${gid()}&order=descricao.asc`);
  listaRecorrentes.innerHTML=d.length?d.map(x=>`
    <div class="row">
      <div>
@@ -1265,7 +1285,7 @@ async function pagarLanc(x){
   pagContaPagamento.innerHTML='<option value="">Selecione...</option>';
 
   try{
-    const contas=await api('/rest/v1/contas?select=id,descricao,banco&grupo_id=eq.${gid()}&ativo=eq.true&order=descricao.asc');
+    const contas=await api(`/rest/v1/contas?select=id,descricao,banco&grupo_id=eq.${gid()}&ativo=eq.true&order=descricao.asc`);
     (contas||[]).forEach(c=>{
       const opt=document.createElement('option');
       opt.value=c.id;
@@ -1381,8 +1401,9 @@ async function excluirContaFinanceira(id,descricao){
 }
 
 async function loadContas(){
+ if(!grupoFinanceiroValido()) return;
  if(!tok())return;
- let d=await api('/rest/v1/contas?select=*&grupo_id=eq.${gid()}&order=descricao.asc');
+ let d=await api(`/rest/v1/contas?select=*&grupo_id=eq.${gid()}&order=descricao.asc`);
  listaContas.innerHTML=d.length?d.map(x=>`
    <div class="row">
      <div>
@@ -1458,8 +1479,9 @@ async function excluirCartao(id,descricao){
 }
 
 async function loadCartoes(){
+ if(!grupoFinanceiroValido()) return;
  if(!tok())return;
- let d=await api('/rest/v1/cartoes?select=*&grupo_id=eq.${gid()}&order=descricao.asc');
+ let d=await api(`/rest/v1/cartoes?select=*&grupo_id=eq.${gid()}&order=descricao.asc`);
  listaCartoes.innerHTML=d.length?d.map(x=>`<div class="row">
    <div><strong>${esc(x.descricao)}</strong><small>Fecha dia ${x.dia_fechamento} • vence dia ${x.dia_vencimento}</small></div>
    <div><strong>${x.limite?money(x.limite):'Sem limite informado'}</strong>
@@ -1483,7 +1505,7 @@ async function abrirCompra(){
  compraData.value=new Date().toISOString().slice(0,10);
  compraCompetencia.value=competencia.value;
  hide('compraMsg');
- let d=await api('/rest/v1/cartoes?select=id,descricao&grupo_id=eq.${gid()}&ativo=eq.true&order=descricao.asc');
+ let d=await api(`/rest/v1/cartoes?select=id,descricao&grupo_id=eq.${gid()}&ativo=eq.true&order=descricao.asc`);
  compraCartao.innerHTML=d.map(x=>`<option value="${x.id}">${esc(x.descricao)}</option>`).join('');
 }
 
@@ -1492,7 +1514,7 @@ async function editarCompra(x){
  compraModalTitulo.textContent='Editar compra no cartão';
  modalCompra.classList.remove('hidden');
  hide('compraMsg');
- let d=await api('/rest/v1/cartoes?select=id,descricao&grupo_id=eq.${gid()}&ativo=eq.true&order=descricao.asc');
+ let d=await api(`/rest/v1/cartoes?select=id,descricao&grupo_id=eq.${gid()}&ativo=eq.true&order=descricao.asc`);
  compraCartao.innerHTML=d.map(c=>`<option value="${c.id}" ${c.id===x.cartao_id?'selected':''}>${esc(c.descricao)}</option>`).join('');
  compraDescricao.value=x.descricao||'';
  compraValor.value=x.valor_total??'';
@@ -1576,8 +1598,9 @@ async function excluirCompra(id,descricao){
 }
 
 async function loadCompras(){
+ if(!grupoFinanceiroValido()) return;
  if(!tok() || !document.getElementById('listaComprasCartao'))return;
- let d=await api('/rest/v1/compras_cartao?select=*&grupo_id=eq.${gid()}&order=data_compra.desc');
+ let d=await api(`/rest/v1/compras_cartao?select=*&grupo_id=eq.${gid()}&order=data_compra.desc`);
  listaComprasCartao.innerHTML=d.length?d.map(x=>`<div class="row">
    <div><strong>${esc(x.descricao)}</strong><small>${dataBR(x.data_compra)} • ${x.quantidade_parcelas} parcela(s)</small></div>
    <div><strong>${money(x.valor_total)}</strong>
