@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FinPlanner Web 2.3</title>
+<title>FinPlanner Web 2.5</title>
 <link rel="icon" href="assets/favicon.ico">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#111827">
-<link rel="stylesheet" href="styles.css?v=2.3">
+<link rel="stylesheet" href="styles.css?v=2.5">
 </head>
 <body>
 
@@ -19,7 +19,7 @@
     <label>Senha</label><input id="senha" type="password">
     <button id="btnEntrar" class="primary full" onclick="entrar()">Entrar</button>
     <div class="login-actions single"><button class="link-action" onclick="abrirRecuperacaoSenha()">Esqueci minha senha</button></div>
-    <div class="login-credit">Desenvolvido por <strong>Fernando Vieira</strong><br><span class="version-tag">FinPlanner Web v2.3</span></div>
+    <div class="login-credit">Desenvolvido por <strong>Fernando Vieira</strong><br><span class="version-tag">FinPlanner Web v2.5</span></div>
   </div>
 </section>
 
@@ -27,7 +27,7 @@
 <header class="topbar">
   <button class="menu-btn" onclick="toggleMenu()">☰</button>
   <div class="header-brand"><img src="assets/logo-64.png" alt="FinPlanner"><strong>FinPlanner</strong></div>
-  <span class="app-version">v2.3</span>
+  <span class="app-version">v2.5</span>
   <div id="workspaceSwitcher" class="workspace-switcher hidden">
     <span>Financeiro:</span>
     <select id="grupoFinanceiroSelect" onchange="trocarGrupoFinanceiro()"></select>
@@ -547,6 +547,30 @@
         <p>O saldo projetado pode mudar durante o mês conforme novas despesas são cadastradas, valores variáveis são atualizados ou alguma renda é alterada.</p>
       </section>
 
+
+      <section id="dln-senha-inicial" class="panel dln-section">
+        <h3>24. Senha inicial</h3>
+        <p>O administrador pode definir uma senha provisória e marcar <strong>Exigir troca da senha no primeiro acesso</strong>.</p>
+        <p>Quando o usuário entrar, o FinPlanner solicitará obrigatoriamente uma nova senha antes de liberar o Dashboard e as movimentações financeiras.</p>
+        <p>Para um usuário já cadastrado, o administrador também pode informar uma nova senha provisória e marcar a troca para o próximo acesso.</p>
+      </section>
+
+      <section id="dln-visibilidade-financeiros" class="panel dln-section">
+        <h3>25. Visualização de outros financeiros</h3>
+        <p>O parâmetro <strong>Pode visualizar financeiros de outros usuários</strong> controla se o usuário pode acessar ambientes financeiros de terceiros.</p>
+        <p>Por segurança, duas condições precisam ser atendidas: o proprietário deve compartilhar o financeiro com aquele usuário e o usuário precisa possuir permissão para visualizar financeiros de terceiros.</p>
+        <p>O financeiro próprio permanece sempre disponível ao respectivo proprietário.</p>
+      </section>
+
+
+      <section id="dln-contas-parceladas" class="panel dln-section">
+        <h3>26. Contas mensais parceladas</h3>
+        <p>Uma conta mensal pode possuir uma quantidade definida de parcelas, como financiamento de veículo, empréstimo ou consórcio.</p>
+        <p>No cadastro, informe a quantidade total de parcelas e a parcela inicial. Exemplo: <strong>1/48</strong>.</p>
+        <p>A cada competência gerada, o FinPlanner mantém o valor da parcela e atualiza automaticamente a posição: 1/48, 2/48, 3/48 e assim por diante.</p>
+        <p>Após a última parcela, a conta deixa de ser carregada automaticamente para os meses seguintes.</p>
+      </section>
+
 <section class="panel dln-footer">
         <strong>FinPlanner Web</strong>
         <span>Desenvolvido por Fernando Vieira</span>
@@ -593,6 +617,30 @@
 </div>
 <div><label>Dia de vencimento *</label><input id="crDia" type="number" min="1" max="31"></div>
 <div><label>Data inicial *</label><input id="crInicio" type="date"></div>
+
+<div class="span2 installment-box">
+  <label class="check-row">
+    <input id="crParcelada" type="checkbox" onchange="toggleParcelamentoConta()">
+    Esta conta possui quantidade definida de parcelas
+  </label>
+
+  <div id="crParcelamentoCampos" class="installment-fields hidden">
+    <div>
+      <label>Quantidade total de parcelas *</label>
+      <input id="crQtdParcelas" type="number" min="1" max="999" step="1" placeholder="Ex.: 48">
+    </div>
+
+    <div>
+      <label>Parcela inicial *</label>
+      <input id="crParcelaInicial" type="number" min="1" max="999" step="1" value="1">
+    </div>
+
+    <small class="muted span2">
+      Exemplo: financiamento com 48 parcelas, iniciando em 1/48. A cada novo mês o sistema avança automaticamente para 2/48, 3/48 e assim por diante.
+    </small>
+  </div>
+</div>
+
 <div class="span2"><label>Linha digitável (opcional)</label><input id="crLinha"></div>
 <div class="span2"><label>Código de barras (opcional)</label><input id="crCodigo"></div>
 </div>
@@ -684,6 +732,13 @@
 
     <label class="check-row"><input id="cadAdministrador" type="checkbox"> Administrador</label>
     <label class="check-row"><input id="cadAtivo" type="checkbox" checked> Usuário ativo</label>
+
+    <div class="access-parameter-box">
+      <strong>Parâmetros de acesso</strong>
+      <label class="check-row"><input id="cadExigirTrocaSenha" type="checkbox" checked> Exigir troca da senha no primeiro acesso</label>
+      <label class="check-row"><input id="cadVisualizarOutrosFinanceiros" type="checkbox"> Pode visualizar financeiros de outros usuários</label>
+      <small class="muted">Para visualizar outro financeiro, este parâmetro e o compartilhamento do proprietário precisam estar habilitados.</small>
+    </div>
     <div class="share-box">
       <strong>Acesso ao financeiro compartilhado</strong>
       <label class="check-row"><input id="cadCompartilharFinanceiro" type="checkbox"> Permitir que este usuário acesse meu financeiro</label>
@@ -729,6 +784,26 @@
       Administrador
     </label>
 
+    <div class="access-parameter-box">
+      <strong>Parâmetros de acesso</strong>
+
+      <label class="check-row">
+        <input id="editUserExigirTrocaSenha" type="checkbox">
+        Exigir troca de senha no próximo acesso
+      </label>
+
+      <label>Nova senha provisória (opcional)</label>
+      <input id="editUserNovaSenha" type="password" minlength="8" placeholder="Preencha somente para redefinir">
+      <label>Confirmar nova senha provisória</label>
+      <input id="editUserNovaSenha2" type="password" minlength="8">
+
+      <label class="check-row">
+        <input id="editUserVisualizarOutrosFinanceiros" type="checkbox">
+        Pode visualizar financeiros de outros usuários
+      </label>
+      <small class="muted">O usuário só verá ambientes que também tenham sido compartilhados com ele pelo proprietário.</small>
+    </div>
+
     <div class="share-box">
       <strong>Permissões sobre o financeiro compartilhado</strong>
 
@@ -760,6 +835,37 @@
   </div>
 </div>
 
+
+
+<!-- TROCA OBRIGATÓRIA DE SENHA -->
+<div id="modalTrocaSenhaInicial" class="modal hidden forced-modal">
+  <div class="modal-box small-modal">
+    <div class="modal-head">
+      <div>
+        <h3>Defina sua nova senha</h3>
+        <p>A senha informada pelo administrador é provisória.</p>
+      </div>
+    </div>
+
+    <div class="info-box">
+      Para continuar no FinPlanner, informe uma nova senha pessoal. Após a alteração, a senha provisória não poderá mais ser utilizada.
+    </div>
+
+    <div id="trocaSenhaInicialMsg" class="message hidden"></div>
+
+    <label>Nova senha *</label>
+    <input id="novaSenhaInicial" type="password" minlength="8" autocomplete="new-password">
+
+    <label>Confirmar nova senha *</label>
+    <input id="novaSenhaInicial2" type="password" minlength="8" autocomplete="new-password">
+
+    <small class="muted">Utilize pelo menos 8 caracteres.</small>
+
+    <div class="modal-actions">
+      <button class="primary full" onclick="confirmarTrocaSenhaInicial()">Salvar nova senha e continuar</button>
+    </div>
+  </div>
+</div>
 
 <!-- RESET FINANCEIRO ADMINISTRATIVO -->
 <div id="modalResetFinanceiro" class="modal hidden">
@@ -824,6 +930,6 @@
 <script>
 window.FINPLANNER_CONFIG={SUPABASE_URL:"https://waytzrygkhyntrwktwlo.supabase.co",SUPABASE_PUBLISHABLE_KEY:"sb_publishable_e9oRHKY_QqUD5QP68DDX2Q_u7ZbbQTO"};
 </script>
-<script src="app.js?v=2.3"></script>
+<script src="app.js?v=2.5"></script>
 </body>
 </html>

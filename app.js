@@ -66,6 +66,8 @@ function abrirCadastroUsuario(){
   cadPodeVisualizar.checked=true;
   cadPodeEditar.checked=true;
   cadPodeExcluir.checked=false;
+  cadExigirTrocaSenha.checked=true;
+  cadVisualizarOutrosFinanceiros.checked=false;
   hide('cadUserMsg');
   modalCadastroUsuario.classList.remove('hidden');
 }
@@ -113,7 +115,9 @@ async function criarUsuario(){
         compartilhar_financeiro:cadCompartilharFinanceiro.checked,
         pode_visualizar:cadPodeVisualizar.checked,
         pode_editar:cadPodeEditar.checked,
-        pode_excluir:cadPodeExcluir.checked
+        pode_excluir:cadPodeExcluir.checked,
+        exigir_troca_senha:cadExigirTrocaSenha.checked,
+        pode_visualizar_outros_financeiros:cadVisualizarOutrosFinanceiros.checked
       })
     });
 
@@ -224,6 +228,7 @@ async function loadUsuarios(){
             <th>Administrador</th>
             <th>Ativo</th>
             <th>Permissões</th>
+            <th>Parâmetros</th>
             <th>Ações</th>
           </tr>
         </thead>
@@ -239,6 +244,10 @@ async function loadUsuarios(){
                 ${u.compartilhado
                   ? `${u.pode_visualizar?'Visualizar':''}${u.pode_editar?' / Editar':''}${u.pode_excluir?' / Excluir':''}`
                   : 'Sem compartilhamento'}
+              </td>
+              <td>
+                ${u.exigir_troca_senha?'Troca de senha pendente':'Senha definida'}
+                ${u.pode_visualizar_outros_financeiros?' / Outros financeiros':''}
               </td>
               <td>
                 <div class="actions">
@@ -270,12 +279,30 @@ function abrirEditarUsuario(u){
   editUserPodeVisualizar.checked=!!u.pode_visualizar;
   editUserPodeEditar.checked=!!u.pode_editar;
   editUserPodeExcluir.checked=!!u.pode_excluir;
+  editUserExigirTrocaSenha.checked=!!u.exigir_troca_senha;
+  editUserVisualizarOutrosFinanceiros.checked=!!u.pode_visualizar_outros_financeiros;
+  editUserNovaSenha.value='';
+  editUserNovaSenha2.value='';
   hide('editUserMsg');
   modalEditarUsuario.classList.remove('hidden');
 }
 
 async function salvarEdicaoUsuario(){
   hide('editUserMsg');
+
+  const novaSenha=editUserNovaSenha.value;
+  const novaSenha2=editUserNovaSenha2.value;
+
+  if(novaSenha || novaSenha2){
+    if(novaSenha.length<8){
+      msg('editUserMsg','A nova senha provisória deve possuir pelo menos 8 caracteres.','error');
+      return;
+    }
+    if(novaSenha!==novaSenha2){
+      msg('editUserMsg','As senhas provisórias não conferem.','error');
+      return;
+    }
+  }
 
   try{
     const r=await fetch(CFG.SUPABASE_URL+'/functions/v1/finplanner-admin-users',{
@@ -295,7 +322,10 @@ async function salvarEdicaoUsuario(){
         compartilhar_financeiro:editUserCompartilhar.checked,
         pode_visualizar:editUserPodeVisualizar.checked,
         pode_editar:editUserPodeEditar.checked,
-        pode_excluir:editUserPodeExcluir.checked
+        pode_excluir:editUserPodeExcluir.checked,
+        exigir_troca_senha:editUserExigirTrocaSenha.checked,
+        pode_visualizar_outros_financeiros:editUserVisualizarOutrosFinanceiros.checked,
+        password:novaSenha||null
       })
     });
 
@@ -461,7 +491,7 @@ const gid=()=>localStorage.getItem('fp_grupo_id')||'';
 
 async function abrirApp(){
  loginView.classList.add('hidden');appView.classList.remove('hidden');
- let p=await api('/rest/v1/perfis?select=nome,email,administrador,ativo&limit=1'); if(p?.length){
+ let p=await api('/rest/v1/perfis?select=nome,email,administrador,ativo,exigir_troca_senha,pode_visualizar_outros_financeiros&limit=1'); if(p?.length){
     usuarioNome.textContent=p[0].nome||p[0].email;
     if(p[0].administrador===true){
       navUsuarios.classList.remove('hidden');
@@ -473,12 +503,58 @@ async function abrirApp(){
       localStorage.setItem('fp_admin','0');
     }
   }
+
+ if(p?.[0]?.exigir_troca_senha===true){
+   appView.classList.add('password-change-pending');
+   novaSenhaInicial.value='';
+   novaSenhaInicial2.value='';
+   hide('trocaSenhaInicialMsg');
+   modalTrocaSenhaInicial.classList.remove('hidden');
+   return;
+ }
+
+ appView.classList.remove('password-change-pending');
  let now=new Date();
  competencia.value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
  if(document.getElementById('competenciaPagas')) competenciaPagas.value=competencia.value;
  await carregarGruposFinanceiros();
  await atualizarTudo();
 }
+
+async function confirmarTrocaSenhaInicial(){
+  hide('trocaSenhaInicialMsg');
+
+  const senha1=novaSenhaInicial.value;
+  const senha2=novaSenhaInicial2.value;
+
+  if(!senha1 || senha1.length<8){
+    msg('trocaSenhaInicialMsg','Informe uma senha com pelo menos 8 caracteres.','error');
+    return;
+  }
+  if(senha1!==senha2){
+    msg('trocaSenhaInicialMsg','As senhas não conferem.','error');
+    return;
+  }
+
+  try{
+    await api('/auth/v1/user',{
+      method:'PUT',
+      body:JSON.stringify({password:senha1})
+    });
+
+    await api('/rest/v1/rpc/fn_concluir_troca_senha',{
+      method:'POST',
+      body:JSON.stringify({})
+    });
+
+    modalTrocaSenhaInicial.classList.add('hidden');
+    appView.classList.remove('password-change-pending');
+    await abrirApp();
+  }catch(e){
+    msg('trocaSenhaInicialMsg','Não foi possível alterar a senha: '+e.message,'error');
+  }
+}
+
 function sair(){localStorage.clear();location.reload()}
 function toggleMenu(){sidebar.classList.toggle('open')}
 function showView(v,b){document.querySelectorAll('.app-section').forEach(x=>x.classList.add('hidden'));document.getElementById('view-'+v).classList.remove('hidden');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));b?.classList.add('active');sidebar.classList.remove('open');if(v==='recorrentes')loadRecorrentes();if(v==='receitas')loadReceitas();if(v==='lancamentos')loadLancamentos();if(v==='cartoes')loadCartoes();if(v==='contas')loadContas();if(v==='alertas')loadPreferenciasAlerta();if(v==='usuarios')loadUsuarios();if(v==='pagas')loadContasPagas();}
@@ -909,6 +985,28 @@ async function loadReceitas(){
 }
 
 
+
+function toggleParcelamentoConta(){
+  const chk=document.getElementById('crParcelada');
+  const box=document.getElementById('crParcelamentoCampos');
+  if(!chk||!box)return;
+  box.classList.toggle('hidden',!chk.checked);
+}
+
+function calcularParcelaConta(rec, competenciaStr){
+  if(!rec?.parcelada || !rec?.qtd_parcelas || !rec?.parcela_inicial || !rec?.data_inicio) return null;
+
+  const inicio=new Date(rec.data_inicio+'T00:00:00');
+  const [y,m]=competenciaStr.split('-').map(Number);
+  const atual=new Date(y,m-1,1);
+
+  const diff=(atual.getFullYear()-inicio.getFullYear())*12 + (atual.getMonth()-inicio.getMonth());
+  const numero=Number(rec.parcela_inicial||1)+diff;
+
+  if(numero<1 || numero>Number(rec.qtd_parcelas)) return null;
+  return {numero,total:Number(rec.qtd_parcelas)};
+}
+
 function abrirContaRecorrente(){
   crId.value='';
   crModalTitulo.textContent='Nova conta mensal';
@@ -919,6 +1017,10 @@ function abrirContaRecorrente(){
   crInicio.value=new Date().toISOString().slice(0,10);
   crLinha.value='';
   crCodigo.value='';
+  crParcelada.checked=false;
+  crQtdParcelas.value='';
+  crParcelaInicial.value='1';
+  toggleParcelamentoConta();
   if(document.getElementById('crLevarProximoMes')) crLevarProximoMes.checked=true;
   hide('recorrenteMsg');
   modalRecorrente.classList.remove('hidden');
@@ -934,6 +1036,10 @@ function editarContaRecorrente(x){
   crInicio.value=x.data_inicio||new Date().toISOString().slice(0,10);
   crLinha.value=x.linha_digitavel_padrao||'';
   crCodigo.value=x.codigo_barras_padrao||'';
+  crParcelada.checked=!!x.parcelada;
+  crQtdParcelas.value=x.qtd_parcelas||'';
+  crParcelaInicial.value=x.parcela_inicial||1;
+  toggleParcelamentoConta();
   if(document.getElementById('crLevarProximoMes')) crLevarProximoMes.checked=x.levar_proximo_mes!==false;
   hide('recorrenteMsg');
   modalRecorrente.classList.remove('hidden');
@@ -945,6 +1051,9 @@ async function salvarContaRecorrente(){
     descricao:crDescricao.value.trim(),
     tipo_valor:crTipo.value,
     valor_padrao:crValor.value?+crValor.value:null,
+    parcelada:crParcelada.checked,
+    qtd_parcelas:crParcelada.checked?Number(crQtdParcelas.value||0):null,
+    parcela_inicial:crParcelada.checked?Number(crParcelaInicial.value||1):null,
     levar_proximo_mes:document.getElementById('crLevarProximoMes')?crLevarProximoMes.checked:true,
     dia_vencimento:+crDia.value,
     data_inicio:crInicio.value,
@@ -956,6 +1065,17 @@ async function salvarContaRecorrente(){
   if(!payload.descricao || !payload.dia_vencimento || !payload.data_inicio){
     msg('recorrenteMsg','Preencha descrição, dia de vencimento e data inicial.','error');
     return;
+  }
+
+  if(payload.parcelada){
+    if(!payload.qtd_parcelas || payload.qtd_parcelas<1){
+      msg('recorrenteMsg','Informe a quantidade total de parcelas.','error');
+      return;
+    }
+    if(!payload.parcela_inicial || payload.parcela_inicial<1 || payload.parcela_inicial>payload.qtd_parcelas){
+      msg('recorrenteMsg','A parcela inicial deve estar entre 1 e a quantidade total de parcelas.','error');
+      return;
+    }
   }
 
   if(crId.value){
@@ -997,7 +1117,7 @@ async function loadRecorrentes(){
    <div class="row">
      <div>
        <strong>${esc(x.descricao)}</strong>
-       <small>${x.tipo_valor} • vence dia ${x.dia_vencimento}${x.tipo_valor==='FIXA'?(x.levar_proximo_mes?' • renova próximo mês':' • não renova'):''}</small>
+       <small>${x.tipo_valor} • vence dia ${x.dia_vencimento}${x.tipo_valor==='FIXA'?(x.levar_proximo_mes?' • renova próximo mês':' • não renova'):''}${x.parcelada?` • ${x.parcela_inicial||1}/${x.qtd_parcelas} parcelas`:''}</small>
      </div>
      <div>
        <strong>${x.valor_padrao==null?'Valor variável':money(x.valor_padrao)}</strong>
